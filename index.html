@@ -5,19 +5,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>學校財產盤點系統</title>
-  
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
+
   <!-- Vue 3 -->
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-  
+
   <!-- html5-qrcode -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-  
+
   <!-- Material Icons -->
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-  
+
   <style>
     :root {
       --safe-top: env(safe-area-inset-top, 0px);
@@ -62,10 +62,8 @@
 </script>
 
 <div id="app" class="min-h-screen pb-safe-bottom relative flex flex-col">
-  
 
-
-  <!-- 頂部導覽區 -->
+  <!-- 頂部導覽區（整個控制列固定在頂端） -->
   <header class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-lg sticky top-0 z-30 pt-safe-top">
     <div class="px-4 py-3 flex justify-between items-center relative">
       <h1 class="text-xl font-extrabold tracking-wide flex items-center">
@@ -73,46 +71,89 @@
       </h1>
       <div class="relative flex items-center">
         <span class="material-icons absolute left-2 text-indigo-300 text-sm">account_circle</span>
-        <input type="text" v-model="operatorName" placeholder="輸入盤點人姓名" 
+        <input type="text" v-model="operatorName" placeholder="輸入盤點人姓名"
                class="pl-7 pr-2 py-1.5 rounded-full text-sm text-gray-800 bg-white/90 border-none focus:ring-2 focus:ring-yellow-300 outline-none w-36 shadow-inner transition-all focus:bg-white placeholder-gray-500 font-medium">
       </div>
     </div>
-    
+
     <!-- 頁籤 -->
     <div class="flex text-sm bg-black/10 backdrop-blur-sm">
-      <button @click="currentTab = 'all'" 
-              :class="{'text-yellow-300 font-bold border-b-2 border-yellow-300': currentTab === 'all', 'text-blue-100': currentTab !== 'all'}" 
+      <button @click="currentTab = 'all'"
+              :class="{'text-yellow-300 font-bold border-b-2 border-yellow-300': currentTab === 'all', 'text-blue-100': currentTab !== 'all'}"
               class="flex-1 py-3 text-center transition-all duration-200">
         全部 ({{ stats.all }})
       </button>
-      <button @click="currentTab = 'pending'" 
-              :class="{'text-yellow-300 font-bold border-b-2 border-yellow-300': currentTab === 'pending', 'text-blue-100': currentTab !== 'pending'}" 
+      <button @click="currentTab = 'pending'"
+              :class="{'text-yellow-300 font-bold border-b-2 border-yellow-300': currentTab === 'pending', 'text-blue-100': currentTab !== 'pending'}"
               class="flex-1 py-3 text-center transition-all duration-200 relative">
         未盤點 ({{ stats.pending }})
         <span v-if="stats.pending > 0" class="absolute top-2 right-4 w-2 h-2 rounded-full bg-red-400 animate-pulse"></span>
       </button>
-      <button @click="currentTab = 'done'" 
-              :class="{'text-yellow-300 font-bold border-b-2 border-yellow-300': currentTab === 'done', 'text-blue-100': currentTab !== 'done'}" 
+      <button @click="currentTab = 'done'"
+              :class="{'text-yellow-300 font-bold border-b-2 border-yellow-300': currentTab === 'done', 'text-blue-100': currentTab !== 'done'}"
               class="flex-1 py-3 text-center transition-all duration-200">
         已完成 ({{ stats.done }})
       </button>
     </div>
-  </header>
 
-  <!-- 搜尋與操作區 -->
-  <div class="bg-gray-50/90 backdrop-blur-md px-4 py-3 shadow-sm sticky top-[104px] z-20 flex space-x-3 border-b border-gray-200">
-    <div class="relative flex-1">
-      <span class="material-icons absolute left-3 top-2.5 text-gray-400">search</span>
-      <input type="text" v-model="searchQuery" placeholder="搜尋編號、名稱、地點..." 
-             class="w-full pl-10 pr-4 py-2 bg-white rounded-xl text-sm border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm">
-      <!-- 快速清除按鈕 -->
-      <span v-show="searchQuery" @click="searchQuery=''" class="material-icons absolute right-3 top-2.5 text-gray-400 cursor-pointer hover:text-gray-600">cancel</span>
+    <!-- 總進度條 -->
+    <div class="px-4 py-2 bg-black/10">
+      <div class="flex justify-between items-center text-[11px] text-blue-100 mb-1">
+        <span class="font-medium">盤點進度 {{ stats.done }} / {{ stats.all }}</span>
+        <span class="font-bold text-yellow-300">{{ progressPct }}%</span>
+      </div>
+      <div class="w-full h-1.5 bg-black/25 rounded-full overflow-hidden">
+        <div class="h-full bg-gradient-to-r from-emerald-400 to-green-400 transition-all duration-500 rounded-full" :style="{ width: progressPct + '%' }"></div>
+      </div>
     </div>
-    <button @click="startScan" class="bg-gradient-to-b from-indigo-500 to-indigo-700 text-white px-5 py-2 rounded-xl shadow-md flex items-center space-x-1 active:scale-95 transition-transform duration-100">
-      <span class="material-icons text-[20px]">qr_code_scanner</span>
-      <span class="font-bold text-sm hidden sm:inline">掃描</span>
-    </button>
-  </div>
+
+    <!-- 搜尋與操作區 -->
+    <div class="bg-gray-50 px-4 py-3 shadow-sm flex space-x-2 border-b border-gray-200">
+      <div class="relative flex-1">
+        <span class="material-icons absolute left-3 top-2.5 text-gray-400">search</span>
+        <input type="text" v-model="searchQuery" placeholder="搜尋編號、名稱、地點..."
+               class="w-full pl-10 pr-8 py-2 bg-white rounded-xl text-sm border border-gray-200 text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm">
+        <span v-show="searchQuery" @click="searchQuery=''" class="material-icons absolute right-3 top-2.5 text-gray-400 cursor-pointer hover:text-gray-600">cancel</span>
+      </div>
+      <!-- 篩選切換 -->
+      <button @click="showFilters = !showFilters"
+              :class="(locationFilter || custodianFilter) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-200'"
+              class="px-3 py-2 rounded-xl shadow-sm border flex items-center active:scale-95 transition-transform duration-100 relative">
+        <span class="material-icons text-[20px]">filter_list</span>
+        <span v-if="locationFilter || custodianFilter" class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-400 rounded-full border border-white"></span>
+      </button>
+      <!-- 重新整理 -->
+      <button @click="loadData" :disabled="isRefreshing" class="bg-white text-indigo-600 border border-indigo-200 px-3 py-2 rounded-xl shadow-sm flex items-center active:scale-95 transition-transform duration-100 disabled:opacity-50">
+        <span class="material-icons text-[20px]" :class="{'animate-spin': isRefreshing}">refresh</span>
+      </button>
+      <!-- 掃描 -->
+      <button @click="startScan" class="bg-gradient-to-b from-indigo-500 to-indigo-700 text-white px-4 py-2 rounded-xl shadow-md flex items-center active:scale-95 transition-transform duration-100">
+        <span class="material-icons text-[20px]">qr_code_scanner</span>
+      </button>
+    </div>
+
+    <!-- 可收合的篩選列 -->
+    <div v-show="showFilters" class="bg-gray-50 px-4 pb-3 border-b border-gray-200 space-y-2">
+      <div class="flex space-x-2">
+        <select v-model="locationFilter" class="flex-1 min-w-0 bg-white border border-gray-300 rounded-xl text-sm py-2 px-2 text-gray-700 outline-none focus:border-indigo-500">
+          <option value="">全部地點</option>
+          <option v-for="loc in uniqueLocations" :key="loc" :value="loc">{{ loc }}</option>
+        </select>
+        <select v-model="custodianFilter" class="flex-1 min-w-0 bg-white border border-gray-300 rounded-xl text-sm py-2 px-2 text-gray-700 outline-none focus:border-indigo-500">
+          <option value="">全部保管人</option>
+          <option v-for="c in uniqueCustodians" :key="c" :value="c">{{ c }}</option>
+        </select>
+        <button v-if="locationFilter || custodianFilter" @click="locationFilter=''; custodianFilter=''" class="px-3 py-2 bg-gray-200 text-gray-600 rounded-xl text-sm font-bold active:scale-95 transition">清除</button>
+      </div>
+    </div>
+
+    <!-- 上次更新時間 -->
+    <div class="bg-gray-50 px-4 pb-2 -mt-px flex justify-end" v-if="lastUpdated">
+      <span class="text-[11px] text-gray-400 flex items-center">
+        <span class="material-icons text-[12px] mr-0.5">update</span>上次更新 {{ lastUpdated }}
+      </span>
+    </div>
+  </header>
 
   <!-- 資料載入中指示 -->
   <div v-if="isLoading" class="flex flex-col items-center justify-center flex-1 py-24">
@@ -129,13 +170,13 @@
 
   <!-- 列表區 -->
   <main v-if="!isLoading" class="flex-1 p-4 space-y-4 pb-24">
-    <div v-for="item in filteredList" :key="item.B" 
-         class="property-card bg-white rounded-2xl shadow-sm border border-gray-100 p-4 relative overflow-hidden" 
+    <div v-for="item in visibleList" :key="item.B"
+         class="property-card bg-white rounded-2xl shadow-sm border border-gray-100 p-4 relative overflow-hidden"
          @click="openItemModal(item)">
-      
+
       <!-- 左側狀態條 -->
       <div class="absolute left-0 top-0 bottom-0 w-2" :class="item.AB === '已盤點' ? 'bg-emerald-500' : 'bg-amber-400'"></div>
-      
+
       <div class="flex justify-between items-start mb-3 pl-2">
         <div class="flex-1 pr-2">
           <h3 class="font-bold text-gray-900 text-lg leading-tight">
@@ -155,7 +196,7 @@
           </span>
         </div>
       </div>
-      
+
       <div class="pl-2 space-y-2">
         <div class="flex items-center text-sm text-gray-700 bg-gray-50 p-2 rounded-lg">
           <span class="material-icons text-[18px] mr-2 text-indigo-400">qr_code_2</span>
@@ -174,13 +215,27 @@
           </div>
         </div>
       </div>
-      
+
+      <!-- 已盤點：顯示盤點人與日期 -->
       <div v-if="item.AB === '已盤點'" class="mt-4 pl-2 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400 font-medium">
         <span class="flex items-center"><span class="material-icons text-[14px] mr-1">person</span>{{ item.AM }}</span>
         <span class="flex items-center"><span class="material-icons text-[14px] mr-1">schedule</span>{{ item.AE }}</span>
       </div>
+      <!-- 未盤點：一鍵直接盤點（不開編輯視窗） -->
+      <div v-else class="mt-4 pl-2 pt-3 border-t border-gray-100 flex items-center justify-between">
+        <span class="text-xs text-gray-400 flex items-center"><span class="material-icons text-[14px] mr-1">touch_app</span>點卡片可修改資料</span>
+        <button @click.stop="quickInventory(item)" class="flex items-center px-4 py-2 bg-emerald-500 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-100 active:scale-95 transition-transform duration-100">
+          <span class="material-icons text-[18px] mr-1">check_circle</span>直接盤點
+        </button>
+      </div>
     </div>
-    
+
+    <!-- 分批渲染：載入更多提示 -->
+    <div v-if="filteredList.length > visibleList.length" class="py-4 text-center text-sm text-gray-400">
+      顯示 {{ visibleList.length }} / {{ filteredList.length }} 筆，往下捲動載入更多…
+    </div>
+    <div v-else-if="filteredList.length > 0" class="py-2 text-center text-xs text-gray-300">— 已顯示全部 {{ filteredList.length }} 筆 —</div>
+
     <!-- 查無資料 -->
     <div v-if="filteredList.length === 0" class="py-16 flex flex-col items-center text-gray-400">
       <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -206,6 +261,19 @@
         <span class="material-icons text-white">close</span>
       </button>
     </div>
+
+    <!-- 連續掃描切換 + 計數 -->
+    <div class="px-4 py-3 flex items-center justify-between text-white">
+      <label class="flex items-center space-x-2 cursor-pointer bg-white/10 px-3 py-2 rounded-full active:bg-white/20 transition">
+        <input type="checkbox" v-model="continuousScan" class="w-4 h-4 accent-emerald-400">
+        <span class="text-sm font-bold">連續掃描</span>
+        <span class="material-icons text-[16px] text-indigo-300">all_inclusive</span>
+      </label>
+      <span v-if="continuousScan" class="text-sm bg-emerald-500/90 px-3 py-2 rounded-full font-bold flex items-center">
+        <span class="material-icons text-[16px] mr-1">done_all</span>本次已盤 {{ scanCount }} 件
+      </span>
+    </div>
+
     <div class="flex-1 flex flex-col justify-center items-center px-6 pb-20">
       <div class="w-full max-w-sm relative">
         <!-- 掃描框動畫裝飾 -->
@@ -213,7 +281,8 @@
         <div id="reader" class="bg-black/50 relative shadow-2xl"></div>
       </div>
       <p class="text-white/70 text-center mt-8 text-sm font-medium flex items-center bg-white/10 px-4 py-2 rounded-full">
-        <span class="material-icons text-sm mr-2 animate-bounce">arrow_downward</span>請將 QR Code 置於方框內
+        <span class="material-icons text-sm mr-2 animate-bounce">arrow_downward</span>
+        {{ continuousScan ? '連續掃描中，逐一對準即可' : '請將 QR Code 置於方框內' }}
       </p>
     </div>
   </div>
@@ -235,7 +304,7 @@
           <span class="material-icons text-[20px]">close</span>
         </button>
       </div>
-      
+
       <!-- Modal Body -->
       <div class="p-5 overflow-y-auto flex-1">
         <!-- 原始資料區卡片 -->
@@ -244,41 +313,41 @@
           <div class="grid grid-cols-[70px_1fr] gap-y-2.5 text-sm">
             <div class="text-indigo-400/80 font-bold">編號</div>
             <div class="font-mono font-bold text-indigo-900 tracking-wider">{{ selectedItem.B }}</div>
-            
+
             <div class="text-indigo-400/80 font-bold">名稱</div>
             <div class="text-gray-800 font-bold">{{ selectedItem.AQ || selectedItem.C }}</div>
-            
+
             <div class="text-indigo-400/80 font-bold">保管人</div>
             <div class="text-gray-800 font-bold">{{ selectedItem.AU || selectedItem.K || '無' }}</div>
-            
+
             <div class="text-indigo-400/80 font-bold">特徵/說明</div>
             <div class="text-gray-800 text-xs">{{ selectedItem.AT || selectedItem.D || '無' }}</div>
-            
+
             <div class="text-indigo-400/80 font-bold">地點一</div>
             <div class="text-gray-800">{{ selectedItem.AR || selectedItem.M || '無' }}</div>
-            
+
             <div class="text-indigo-400/80 font-bold">地點二</div>
             <div class="text-gray-800">{{ selectedItem.AS || selectedItem.N || '無' }}</div>
           </div>
         </div>
-        
+
         <div class="flex items-center space-x-2 text-xs font-bold text-gray-400 mb-4 px-1">
           <div class="flex-1 h-px bg-gray-200"></div>
           <span>資料如有異動請於下方修改</span>
           <div class="flex-1 h-px bg-gray-200"></div>
         </div>
-        
+
         <!-- 編輯表單 -->
         <div class="space-y-4">
           <div>
             <label class="block text-sm text-gray-700 mb-1.5 font-bold pl-1">修正保管人</label>
-            <input type="text" v-model="editForm.modifiedCustodian" 
+            <input type="text" v-model="editForm.modifiedCustodian"
                    class="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm placeholder-gray-300"
                    placeholder="若無修改請維持原狀">
           </div>
           <div>
             <label class="block text-sm text-gray-700 mb-1.5 font-bold pl-1">修正名稱</label>
-            <input type="text" v-model="editForm.modifiedName" 
+            <input type="text" v-model="editForm.modifiedName"
                    class="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm placeholder-gray-300"
                    placeholder="若無修改請維持原狀">
           </div>
@@ -290,12 +359,12 @@
           </div>
           <div>
             <label class="block text-sm text-gray-700 mb-1.5 font-bold pl-1">修正地點一</label>
-            <input type="text" v-model="editForm.modifiedLoc1" 
+            <input type="text" v-model="editForm.modifiedLoc1"
                    class="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm placeholder-gray-300">
           </div>
           <div>
             <label class="block text-sm text-gray-700 mb-1.5 font-bold pl-1">修正地點二</label>
-            <input type="text" v-model="editForm.modifiedLoc2" 
+            <input type="text" v-model="editForm.modifiedLoc2"
                    class="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm placeholder-gray-300">
           </div>
           <div class="flex space-x-4 mt-4 bg-gray-50 p-3 rounded-xl border border-gray-200">
@@ -311,10 +380,10 @@
           </div>
         </div>
       </div>
-      
+
       <!-- Modal Footer -->
       <div class="p-5 bg-white border-t border-gray-100 pb-safe-bottom shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        <button @click="submitInventory" :disabled="isSubmitting" 
+        <button @click="submitInventory" :disabled="isSubmitting"
                 class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-indigo-200 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98] flex justify-center items-center transition-all disabled:opacity-70 disabled:active:scale-100">
           <span v-if="isSubmitting" class="material-icons animate-spin mr-2">refresh</span>
           <span class="material-icons mr-2" v-else>check_circle</span>
@@ -323,7 +392,7 @@
       </div>
     </div>
   </div>
-  
+
   <!-- 獨立備註 Modal -->
   <div v-if="showRemarkModal" class="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300">
     <div class="bg-white w-full max-w-sm rounded-2xl flex flex-col overflow-hidden shadow-2xl">
@@ -343,7 +412,7 @@
       </div>
       <div class="p-4 bg-gray-50 border-t border-gray-100 flex space-x-3">
         <button @click="closeRemarkModal" class="flex-1 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-xl font-bold text-sm shadow-sm hover:bg-gray-50 transition-colors">取消</button>
-        <button @click="submitRemark" :disabled="isSubmittingRemark" 
+        <button @click="submitRemark" :disabled="isSubmittingRemark"
                 class="flex-1 py-2.5 bg-amber-500 text-white rounded-xl font-bold text-sm shadow-md hover:bg-amber-600 transition-colors disabled:opacity-70 flex justify-center items-center">
           <span v-if="isSubmittingRemark" class="material-icons animate-spin mr-1 text-[16px]">refresh</span>
           {{ isSubmittingRemark ? '儲存中...' : '儲存備註' }}
@@ -355,7 +424,7 @@
   <!-- Toast 通知 (Snack bar) -->
   <div class="fixed top-14 left-0 w-full flex justify-center z-[100] pointer-events-none transition-all duration-300"
        :class="toast.show ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0'">
-    <div :class="{'bg-emerald-600 text-white': toast.type === 'success', 'bg-red-600 text-white': toast.type === 'error', 'bg-gray-800 text-white': toast.type === 'info'}" 
+    <div :class="{'bg-emerald-600 text-white': toast.type === 'success', 'bg-red-600 text-white': toast.type === 'error', 'bg-gray-800 text-white': toast.type === 'info'}"
          class="px-5 py-3 rounded-full shadow-xl flex items-center space-x-2 border border-black/10">
       <span class="material-icons text-sm">{{ toast.icon }}</span>
       <span class="font-bold text-sm tracking-wide">{{ toast.message }}</span>
@@ -367,18 +436,34 @@
 <script>
   const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
 
+  const CACHE_KEY = 'gas_inventory_cache_v1';
+
   createApp({
     setup() {
       // --- 狀態變數 ---
       const inventoryList = ref([]);
       const isLoading = ref(true);
+      const isRefreshing = ref(false);      // 背景更新中（已有資料時）
       const isSubmitting = ref(false);
       const errorMessage = ref('');
       const operatorName = ref(localStorage.getItem('gas_inventory_op_name') || '');
       const currentTab = ref('pending'); // 'all', 'pending', 'done'
       const searchQuery = ref('');
       const showScanner = ref(false);
-      
+      const lastUpdated = ref('');          // 上次成功更新時間 HH:mm
+
+      // 篩選 / 分批渲染
+      const showFilters = ref(false);
+      const locationFilter = ref('');
+      const custodianFilter = ref('');
+      const renderLimit = ref(40);          // 一次先渲染幾筆，捲到底再加
+
+      // 連續掃描
+      const continuousScan = ref(localStorage.getItem('gas_continuous_scan') === '1');
+      const scanCount = ref(0);
+      let lastScanCode = '';
+      let lastScanTime = 0;
+
       const selectedItem = ref(null);
       const editForm = ref({
         modifiedName: '',
@@ -386,7 +471,7 @@
         modifiedLoc2: '',
         modifiedDesc: ''
       });
-      
+
       const toast = ref({ show: false, message: '', type: 'success', icon: 'check' });
 
       // 獨立備註 Modal 狀態（原本漏了這三個 ref 宣告，會導致 setup() 在 return 時拋 ReferenceError、整頁白畫面）
@@ -394,50 +479,111 @@
       const remarkText = ref('');
       const isSubmittingRemark = ref(false);
 
-      // --- 監聽與生命週期 ---
+      let lastFetchTime = 0;
+
+      // --- 小工具 ---
+      const haptic = (ms = 30) => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} };
+      const fmtTime = (d) => `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+      const saveCache = (data) => {
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+          localStorage.setItem(CACHE_KEY + '_t', Date.now().toString());
+        } catch (e) { /* localStorage 滿了就略過 */ }
+      };
+
+      // --- 監聽 ---
       watch(operatorName, (newVal) => {
         localStorage.setItem('gas_inventory_op_name', newVal);
       });
+      watch(continuousScan, (v) => {
+        localStorage.setItem('gas_continuous_scan', v ? '1' : '0');
+      });
+      // 切換頁籤 / 搜尋 / 篩選時，重置分批渲染並回到頂端
+      watch([currentTab, searchQuery, locationFilter, custodianFilter], () => {
+        renderLimit.value = 40;
+        window.scrollTo({ top: 0 });
+      });
 
+      // --- 載入資料（支援快取 + 背景更新） ---
       const loadData = async () => {
-        isLoading.value = true;
+        const hasData = inventoryList.value.length > 0;
+        if (hasData) { isRefreshing.value = true; } else { isLoading.value = true; }
         errorMessage.value = '';
-        
-        // 如果還沒有設定 GAS_API_URL，使用模擬資料
+
+        // 尚未設定 GAS_API_URL → 使用模擬資料
         if (GAS_API_URL === "請在此填入部署後的_GAS_API_網址" || GAS_API_URL === "") {
           setTimeout(() => {
             inventoryList.value = [
-              {rowIndex:2, B:'1120101', C:'筆記型電腦 (本機模擬測試)', D:'ASUS, 黑色, 8GB RAM', K:'資訊組長', M:'電腦教室一', N:'櫃子A', AB:'', AE:'', AM:'', AN:'', AP:'', AQ:'', AR:'', AS:'', AT:'', AU:'', AV:'', AW:'', AX:''},
-              {rowIndex:3, B:'1120102', C:'投影機', D:'Epson, 吊掛式', K:'總務處', M:'會議室', N:'', AB:'已盤點', AE:'2023/10/01', AM:'王大明', AN:'', AP:'', AQ:'', AR:'', AS:'', AT:'', AU:'', AV:'', AW:'', AX:''},
-              {rowIndex:4, B:'1120103', C:'辦公桌', D:'木製, 120x60cm', K:'林老師', M:'教師辦公室', N:'角落', AB:'', AE:'', AM:'', AN:'', AP:'', AQ:'', AR:'', AS:'', AT:'', AU:'', AV:'', AW:'', AX:''}
+              {rowIndex:2, B:'1120101', C:'筆記型電腦 (本機模擬測試)', D:'ASUS, 黑色, 8GB RAM', K:'資訊組長', M:'電腦教室一', N:'櫃子A'},
+              {rowIndex:3, B:'1120102', C:'投影機', D:'Epson, 吊掛式', K:'總務處', M:'會議室', AB:'已盤點', AE:'2023/10/01', AM:'王大明'},
+              {rowIndex:4, B:'1120103', C:'辦公桌', D:'木製, 120x60cm', K:'林老師', M:'教師辦公室', N:'角落'}
             ];
             isLoading.value = false;
-          }, 1000);
+            isRefreshing.value = false;
+            lastUpdated.value = fmtTime(new Date());
+          }, 800);
           return;
         }
 
         try {
           const response = await fetch(GAS_API_URL);
           if (!response.ok) throw new Error('API 回應錯誤: ' + response.status);
-          
           const data = await response.json();
           if (data.error) {
-            errorMessage.value = data.error;
+            if (!hasData) errorMessage.value = data.error; else showToast(data.error, 'error');
           } else {
             inventoryList.value = data;
+            saveCache(data);
+            lastFetchTime = Date.now();
+            lastUpdated.value = fmtTime(new Date());
           }
         } catch (error) {
-          errorMessage.value = '無法連線至資料庫，請檢查網路連線或 API 網址是否正確。 (' + error.message + ')';
+          if (!hasData) {
+            errorMessage.value = '無法連線至資料庫，請檢查網路連線或 API 網址是否正確。 (' + error.message + ')';
+          } else {
+            showToast('更新失敗，目前顯示的是上次的資料', 'error', 4000);
+          }
         } finally {
           isLoading.value = false;
+          isRefreshing.value = false;
         }
       };
 
       onMounted(() => {
+        // 1) 先用快取秒顯示（不必等 600KB 下載完）
+        try {
+          const cached = localStorage.getItem(CACHE_KEY);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length) {
+              inventoryList.value = parsed;
+              isLoading.value = false;
+              const t = localStorage.getItem(CACHE_KEY + '_t');
+              if (t) lastUpdated.value = fmtTime(new Date(parseInt(t)));
+            }
+          }
+        } catch (e) {}
+
+        // 2) 背景抓最新
         loadData();
+
+        // 3) 回到前景時自動更新（超過 30 秒才抓，避免太頻繁）
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible' && Date.now() - lastFetchTime > 30000) {
+            loadData();
+          }
+        });
+
+        // 4) 捲到接近底部時，自動多渲染一批（解決 1855 筆全塞 DOM 造成的卡頓）
+        window.addEventListener('scroll', () => {
+          if (renderLimit.value >= filteredList.value.length) return;
+          if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 800) {
+            renderLimit.value += 40;
+          }
+        }, { passive: true });
       });
 
-      // --- 計算屬性 (過濾與統計) ---
+      // --- 計算屬性 ---
       const stats = computed(() => {
         const done = inventoryList.value.filter(i => i.AB === '已盤點').length;
         return {
@@ -447,62 +593,91 @@
         };
       });
 
+      const progressPct = computed(() => stats.value.all ? Math.round(stats.value.done / stats.value.all * 100) : 0);
+
+      // 地點 / 保管人下拉選項（取有值者去重排序）
+      const uniqueLocations = computed(() => {
+        const s = new Set();
+        inventoryList.value.forEach(i => { const loc = i.AR || i.M; if (loc) s.add(loc.toString()); });
+        return Array.from(s).sort();
+      });
+      const uniqueCustodians = computed(() => {
+        const s = new Set();
+        inventoryList.value.forEach(i => { const c = i.AU || i.K; if (c) s.add(c.toString()); });
+        return Array.from(s).sort();
+      });
+
       const filteredList = computed(() => {
         let list = inventoryList.value;
-        
+
         if (currentTab.value === 'pending') {
           list = list.filter(i => i.AB !== '已盤點');
         } else if (currentTab.value === 'done') {
           list = list.filter(i => i.AB === '已盤點');
         }
-        
+
+        if (locationFilter.value) {
+          list = list.filter(i => (i.AR || i.M || '').toString() === locationFilter.value);
+        }
+        if (custodianFilter.value) {
+          list = list.filter(i => (i.AU || i.K || '').toString() === custodianFilter.value);
+        }
+
         if (searchQuery.value.trim()) {
           const q = searchQuery.value.toLowerCase().trim();
           list = list.filter(i => {
-            const b = i.B ? i.B.toString().toLowerCase() : '';
-            const c = i.C ? i.C.toString().toLowerCase() : '';
-            const d = i.D ? i.D.toString().toLowerCase() : '';
-            const k = i.M ? i.M.toString().toLowerCase() : '';
-            const l = i.N ? i.N.toString().toLowerCase() : '';
-            return b.includes(q) || c.includes(q) || d.includes(q) || k.includes(q) || l.includes(q);
+            const b    = i.B ? i.B.toString().toLowerCase() : '';
+            const name = (i.AQ || i.C) ? (i.AQ || i.C).toString().toLowerCase() : '';
+            const desc = (i.AT || i.D) ? (i.AT || i.D).toString().toLowerCase() : '';
+            const loc1 = (i.AR || i.M) ? (i.AR || i.M).toString().toLowerCase() : '';
+            const loc2 = (i.AS || i.N) ? (i.AS || i.N).toString().toLowerCase() : '';
+            const cust = (i.AU || i.K) ? (i.AU || i.K).toString().toLowerCase() : '';
+            return b.includes(q) || name.includes(q) || desc.includes(q) || loc1.includes(q) || loc2.includes(q) || cust.includes(q);
           });
         }
         return list;
       });
 
+      // 實際渲染的子集（分批）
+      const visibleList = computed(() => filteredList.value.slice(0, renderLimit.value));
+
       // --- 方法 (UI 行為) ---
       const showToast = (message, type = 'success', duration = 3000) => {
-        toast.value = { 
-          show: true, 
-          message, 
-          type, 
+        toast.value = {
+          show: true,
+          message,
+          type,
           icon: type === 'success' ? 'check_circle' : (type === 'error' ? 'error_outline' : 'info')
         };
         setTimeout(() => { toast.value.show = false; }, duration);
       };
 
       // --- 掃描器邏輯 ---
-      // 使用 Html5Qrcode (非 Html5QrcodeScanner)，獲取最高 UI 控制權
       let html5QrCode = null;
 
       const startScan = () => {
+        if (continuousScan.value && !operatorName.value.trim()) {
+          showToast('連續掃描前請先輸入盤點人姓名', 'error', 4000);
+          return;
+        }
         showScanner.value = true;
-        // 用 nextTick 確保 #reader div 已掛載，同時保留 User Gesture Token
+        scanCount.value = 0;
+        lastScanCode = '';
         nextTick(() => {
           if (html5QrCode === null) {
             html5QrCode = new Html5Qrcode("reader");
           }
-          const config = {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0
-          };
+          const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
           html5QrCode.start(
             { facingMode: "environment" },
             config,
             (decodedText) => {
-              stopScan();
-              handleScannedCode(decodedText);
+              if (continuousScan.value) {
+                handleContinuousScan(decodedText);
+              } else {
+                stopScan();
+                handleScannedCode(decodedText);
+              }
             },
             () => { /* 對焦失敗，靜默略過 */ }
           ).catch((err) => {
@@ -520,20 +695,12 @@
         showScanner.value = false;
       };
 
-      const onScanSuccess = (decodedText) => {
-        // 成功掃描後先停止鏡頭
-        stopScan();
-        handleScannedCode(decodedText);
-      };
+      const normalizeCode = (text) => text.startsWith("888!") ? text.substring(4) : text;
 
+      // 單次掃描：找到就開啟編輯視窗
       const handleScannedCode = (text) => {
-        let code = text;
-        if (code.startsWith("888!")) {
-          code = code.substring(4);
-        }
-        
+        const code = normalizeCode(text);
         const item = inventoryList.value.find(i => i.B && i.B.toString() === code);
-        
         if (item) {
           showToast(`掃描成功：${code}`, 'success', 2000);
           openItemModal(item);
@@ -543,13 +710,29 @@
         }
       };
 
+      // 連續掃描：找到未盤點就直接盤點，不停鏡頭
+      const handleContinuousScan = (text) => {
+        const now = Date.now();
+        const code = normalizeCode(text);
+        if (code === lastScanCode && now - lastScanTime < 2500) return; // 同一碼短時間內防重複
+        lastScanCode = code;
+        lastScanTime = now;
+
+        const item = inventoryList.value.find(i => i.B && i.B.toString() === code);
+        if (!item) { haptic(120); showToast(`找不到編號 [${code}]`, 'error', 2000); return; }
+        if (item.AB === '已盤點') { haptic(15); showToast(`${code} 先前已盤點`, 'info', 1800); return; }
+        if (!operatorName.value.trim()) { stopScan(); showToast('請先輸入盤點人姓名', 'error', 4000); return; }
+
+        quickInventory(item);
+        scanCount.value++;
+      };
+
       // --- Modal 表單邏輯 ---
       const openItemModal = (item) => {
         if (!operatorName.value.trim()) {
           showToast('請先在右上角輸入您的「盤點人姓名」', 'error', 4000);
           return;
         }
-        
         selectedItem.value = item;
         editForm.value = {
           modifiedCustodian: item.AU || item.K || '',
@@ -566,6 +749,58 @@
         selectedItem.value = null;
       };
 
+      // 共用：送出盤點到後端（樂觀更新 + 失敗還原）
+      const postInventory = async (updateData, oriItem, form) => {
+        const snapshot = { ...oriItem };
+        updateLocalItemStatus(oriItem.B, form);
+        try {
+          const response = await fetch(GAS_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(updateData)
+          });
+          const result = await response.json();
+          if (!result.success) throw new Error(result.message || '伺服器回報儲存失敗');
+          return true;
+        } catch (error) {
+          const idx = inventoryList.value.findIndex(i => i.B === snapshot.B);
+          if (idx > -1) inventoryList.value[idx] = snapshot;
+          showToast('「' + (snapshot.AQ || snapshot.C || snapshot.B) + '」儲存失敗，已還原，請重新盤點', 'error', 6000);
+          return false;
+        }
+      };
+
+      // 一鍵直接盤點（不開編輯視窗）
+      const quickInventory = (item) => {
+        if (!operatorName.value.trim()) {
+          showToast('請先在右上角輸入您的「盤點人姓名」', 'error', 4000);
+          return;
+        }
+        const itemIndex = inventoryList.value.findIndex(i => i.B === item.B);
+        if (itemIndex < 0) return;
+        const oriItem = inventoryList.value[itemIndex];
+        if (oriItem.AB === '已盤點') return;
+
+        const updateData = {
+          rowIndex: item.rowIndex,
+          operatorName: operatorName.value.trim(),
+          modifiedCustodian: '', modifiedName: '', modifiedLoc1: '', modifiedLoc2: '', modifiedDesc: '',
+          isScrap: false, isReprintLabel: false
+        };
+
+        if (GAS_API_URL === "請在此填入部署後的_GAS_API_網址" || GAS_API_URL === "") {
+          updateLocalItemStatus(oriItem.B, {});
+          haptic();
+          showToast('✓ 已盤點（模擬）', 'success', 1500);
+          return;
+        }
+
+        haptic();
+        showToast('✓ 已盤點 ' + (oriItem.C || oriItem.B || ''), 'success', 1500);
+        postInventory(updateData, oriItem, {});
+      };
+
+      // 完整盤點（編輯視窗送出）
       const submitInventory = async () => {
         const item = selectedItem.value;
         const form = editForm.value;
@@ -596,7 +831,7 @@
           isReprintLabel: form.isReprintLabel
         };
 
-        // 模擬資料模式（尚未設定 API 網址）
+        // 模擬資料模式
         if (GAS_API_URL === "請在此填入部署後的_GAS_API_網址" || GAS_API_URL === "") {
           updateLocalItemStatus(oriItem.B, form);
           showToast('模擬測試：盤點與資料修改成功！', 'success');
@@ -604,33 +839,13 @@
           return;
         }
 
-        // === 樂觀更新 ===
-        // 先存一份快照，畫面立刻變「已盤點」並關閉視窗，實際寫入在背景進行。
-        // 萬一伺服器或網路失敗，再把這筆資料還原並提示，避免「以為存到、其實沒存」。
-        const snapshot = { ...oriItem };
-        updateLocalItemStatus(oriItem.B, form);
+        // 樂觀更新：立即關閉視窗、卡片變已盤點，背景送出
         showToast('盤點成功！', 'success', 2000);
         closeItemModal();
         if (currentTab.value === 'pending' && stats.value.pending === 0) {
           currentTab.value = 'all';
         }
-
-        try {
-          const response = await fetch(GAS_API_URL, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'text/plain;charset=utf-8',
-            },
-            body: JSON.stringify(updateData)
-          });
-          const result = await response.json();
-          if (!result.success) throw new Error(result.message || '伺服器回報儲存失敗');
-        } catch (error) {
-          // 寫入失敗：還原這筆資料的狀態，並明確提示需重新盤點
-          const idx = inventoryList.value.findIndex(i => i.B === snapshot.B);
-          if (idx > -1) inventoryList.value[idx] = snapshot;
-          showToast('「' + (snapshot.AQ || snapshot.C || snapshot.B) + '」儲存失敗，已還原，請重新盤點', 'error', 6000);
-        }
+        postInventory(updateData, oriItem, form);
       };
 
       // 即時更新前端記憶體資料，不需重新撈取 DB
@@ -639,12 +854,11 @@
         if (itemIndex > -1) {
           const item = inventoryList.value[itemIndex];
           const now = new Date();
-          
+
           item.AB = '已盤點';
           item.AE = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}`;
           item.AM = operatorName.value.trim();
-          
-          // 如果有異動，也要將異動紀錄寫入本地，讓列表能即時(雖未顯示這些欄位，但可維持資料一致性)
+
           if (newValues.modifiedCustodian && newValues.modifiedCustodian !== item.K) { item.AU = newValues.modifiedCustodian; item.AP = 'TRUE'; }
           if (newValues.modifiedName && newValues.modifiedName !== item.C) { item.AQ = newValues.modifiedName; item.AP = 'TRUE'; }
           if (newValues.modifiedLoc1 && newValues.modifiedLoc1 !== item.M) { item.AR = newValues.modifiedLoc1; item.AP = 'TRUE'; }
@@ -652,23 +866,21 @@
           if (newValues.modifiedDesc && newValues.modifiedDesc !== item.D) { item.AT = newValues.modifiedDesc; item.AP = 'TRUE'; }
           if (newValues.isScrap) { item.AV = '是'; item.AP = 'TRUE'; } else { item.AV = ''; }
           if (newValues.isReprintLabel) { item.AW = '是'; item.AP = 'TRUE'; } else { item.AW = ''; }
-          
-          // 重新賦值以觸發 Vue 響應式更新
-          inventoryList.value[itemIndex] = {...item};
+
+          inventoryList.value[itemIndex] = { ...item };
         }
       };
 
-      
       const openRemarkModal = () => {
         if (!selectedItem.value) return;
         remarkText.value = selectedItem.value.AX || '';
         showRemarkModal.value = true;
       };
-      
+
       const closeRemarkModal = () => {
         showRemarkModal.value = false;
       };
-      
+
       const submitRemark = async () => {
         const item = selectedItem.value;
         const oriItem = inventoryList.value.find(i => i.B === item.B);
@@ -690,7 +902,6 @@
         if (GAS_API_URL === "請在此填入部署後的_GAS_API_網址" || GAS_API_URL === "") {
           setTimeout(() => {
             isSubmittingRemark.value = false;
-            // update local remark
             const itemIndex = inventoryList.value.findIndex(i => i.B === oriItem.B);
             if (itemIndex > -1) {
               inventoryList.value[itemIndex].AX = remarkText.value;
@@ -732,11 +943,14 @@
       };
 
       return {
-        inventoryList, isLoading, isSubmitting, errorMessage,
-        operatorName, currentTab, searchQuery, stats, filteredList,
+        inventoryList, isLoading, isRefreshing, isSubmitting, errorMessage,
+        operatorName, currentTab, searchQuery, stats, progressPct, filteredList, visibleList,
+        showFilters, locationFilter, custodianFilter, uniqueLocations, uniqueCustodians,
+        lastUpdated,
+        continuousScan, scanCount,
         showRemarkModal, remarkText, isSubmittingRemark, openRemarkModal, closeRemarkModal, submitRemark,
         showScanner, startScan, stopScan, handleScannedCode, loadData,
-        selectedItem, editForm, openItemModal, closeItemModal, submitInventory,
+        selectedItem, editForm, openItemModal, closeItemModal, submitInventory, quickInventory,
         toast
       };
     }
