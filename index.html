@@ -1,730 +1,746 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智慧設備借還系統 (V14.2) 動態教學</title>
-    <style>
-        /* --- 1. 樣式定義 --- */
-        :root {
-            --color-header: #2C3E50;
-            --color-sidebar: #34495E;
-            --color-bg: #ECF0F1;
-            --color-card: #FFFFFF;
-            --color-accent: #E67E22;
-            --color-success: #27AE60;
-            --color-logout: #E74C3C;
-            --color-edit: #8E44AD;
-            --color-text-dark: #2C3E50;
-            --color-hint-normal: #F1C40F;
-            --color-welcome: #2ECC71;
-            --color-select-bg: #2980B9;
-            
-            --tab-inactive-bg: #BDC3C7;
-            --tab-active-bg: #FFFFFF;
-            --tab-active-fg: #E67E22;
-
-            --scroll-bg: #34495E;
-            --scroll-track: #ECF0F1;
-            --scroll-active: #5D6D7E;
-            
-            --font-main: "Microsoft JhengHei UI", "Segoe UI", sans-serif;
-            --font-signature: "Segoe UI", sans-serif;
-        }
-
-        * { box-sizing: border-box; }
-
-        body {
-            font-family: var(--font-main);
-            background-color: var(--color-bg);
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            user-select: none;
-        }
-
-        /* --- 客製化捲軸 --- */
-        ::-webkit-scrollbar { width: 12px; height: 12px; }
-        ::-webkit-scrollbar-track { background: var(--scroll-track); }
-        ::-webkit-scrollbar-thumb { background: var(--scroll-bg); border: 2px solid var(--scroll-track); }
-        ::-webkit-scrollbar-thumb:hover { background: var(--scroll-active); }
-
-        /* 通用按鈕 */
-        .btn {
-            border: none;
-            padding: 8px 15px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: opacity 0.1s;
-            border-radius: 0;
-            font-size: 14px;
-            font-family: var(--font-main);
-        }
-        .btn:hover { opacity: 0.9; }
-        .btn:active { opacity: 1; }
-        .btn:disabled { background-color: #95A5A6; cursor: not-allowed; opacity: 0.7; }
-        
-        .btn-accent { background-color: var(--color-accent); color: white; }
-        .btn-success { background-color: var(--color-success); color: white; }
-        .btn-edit { background-color: var(--color-edit); color: white; }
-        .btn-blue { background-color: #3498DB; color: white; }
-        .btn-logout { background-color: var(--color-logout); color: white; width: 100%; font-size: 14px; font-weight: bold; padding: 10px; }
-
-        /* --- 2. 登入畫面 --- */
-        #login-screen {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: var(--color-header);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            transition: opacity 0.5s;
-        }
-        .login-box { text-align: center; color: white; }
-        .login-title { font-size: 32px; font-weight: bold; margin-bottom: 10px; }
-        .scan-hint { font-size: 24px; color: var(--color-hint-normal); font-weight: bold; margin-bottom: 20px; }
-        .scan-input { font-size: 20px; padding: 10px; width: 320px; border: none; background: white; text-align: center; outline: none; margin-bottom: 30px; }
-        .tutorial-start-btn { background: transparent; border: 1px solid #7F8C8D; color: #BDC3C7; padding: 8px 16px; cursor: pointer; font-size: 13px; margin-top: 20px; }
-        .tutorial-start-btn:hover { color: white; border-color: white; }
-
-        /* --- 3. 主介面 --- */
-        #main-app { display: none; height: 100%; flex-direction: column; }
-
-        header {
-            background-color: var(--color-header);
-            color: white;
-            height: 100px;
-            display: flex;
-            align-items: center;
-            padding: 0 30px;
-            flex-shrink: 0;
-            position: relative;
-        }
-        .header-content { display: flex; align-items: center; width: 100%; }
-        .user-info { font-size: 18px; font-weight: bold; color: var(--color-welcome); margin-left: 20px;}
-
-        .container-main { flex: 1; display: flex; flex-direction: column; padding: 20px; background-color: var(--color-bg); overflow: hidden; }
-
-        /* Tabs */
-        .tabs-nav { display: flex; background-color: var(--color-bg); padding-bottom: 0; margin-bottom: 0; }
-        .tab-btn {
-            padding: 8px 20px;
-            background: var(--tab-inactive-bg);
-            border: none;
-            color: var(--color-text-dark);
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-right: 2px;
-            border-radius: 3px 3px 0 0;
-            position: relative;
-            top: 2px;
-        }
-        .tab-btn.active {
-            background-color: var(--tab-active-bg);
-            color: var(--tab-active-fg);
-            top: 0;
-            z-index: 2;
-            padding-bottom: 10px;
-        }
-
-        .tab-content { display: none; flex: 1; background-color: var(--color-bg); padding-top: 15px; overflow: hidden; flex-direction: column; }
-        .tab-content.active { display: flex; }
-
-        /* Borrow UI */
-        .borrow-split { display: flex; flex: 1; min-height: 0; }
-        .category-list { width: 220px; background-color: var(--color-sidebar); color: white; overflow-y: auto; display: flex; flex-direction: column; padding: 10px; }
-        .cat-item { padding: 5px 10px; cursor: pointer; font-size: 16px; color: white; margin-bottom: 2px; }
-        .cat-item:hover { background-color: rgba(255,255,255,0.1); }
-        .cat-item.selected { background-color: var(--color-accent); color: white; }
-
-        .items-area-wrapper { flex: 1; background-color: var(--color-bg); padding-left: 0; display: flex; flex-direction: column; }
-        .items-area { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 10px; }
-        .item-card {
-            background-color: var(--color-card); color: var(--color-text-dark); width: 150px; height: 70px;
-            padding: 5px; display: flex; align-items: center; justify-content: center; text-align: center;
-            cursor: pointer; font-size: 13px; transition: background 0.1s;
-        }
-        .item-card:hover { background-color: #D6EAF8; }
-
-        /* Cart */
-        .cart-container { height: 220px; background: white; margin-top: 15px; padding: 10px; display: flex; flex-direction: column; }
-        .cart-label { font-weight: bold; color: var(--color-text-dark); margin-bottom: 5px; font-size: 14px; }
-        .cart-inner { flex: 1; display: flex; gap: 10px; overflow: hidden; }
-        .cart-table-wrap { flex: 1; overflow-y: auto; border: none; background: white; }
-        
-        .data-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
-        .data-table th { background-color: var(--color-sidebar); color: white; padding: 8px 5px; position: sticky; top: 0; text-align: center; font-weight: bold; }
-        .data-table td { padding: 8px 5px; text-align: center; color: var(--color-text-dark); border-bottom: 1px solid #f0f0f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-        .data-table tr.selected-row { background-color: var(--color-select-bg) !important; }
-        .data-table tr.selected-row td { color: var(--color-card) !important; }
-
-        .cart-actions { width: 120px; display: flex; flex-direction: column; gap: 5px; padding-top: 0; }
-        .btn-cart-confirm { background-color: var(--color-accent); color: white; height: 60px; font-size: 16px; font-weight: bold; }
-        .btn-cart-note { background-color: #3498DB; color: white; height: 30px; }
-
-        /* Return UI */
-        .return-controls { padding: 10px 0; display: flex; justify-content: flex-start; align-items: center; gap: 10px;}
-        .return-table-wrap { flex: 1; overflow-y: auto; background: white; }
-        .overdue { color: red !important; }
-        
-        /* Footer */
-        .footer { margin-top: 20px; display: flex; flex-direction: column; gap: 5px; }
-        .signature { font-family: var(--font-signature); font-style: italic; font-size: 12px; color: #95A5A6; text-align: right; padding-right: 5px; }
-
-        /* Tooltip & Modals */
-        .tutorial-overlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.5); z-index: 9000; display: none; 
-            pointer-events: auto; 
-        }
-        
-        .highlight-target { 
-            position: relative; 
-            z-index: 9001 !important; 
-            box-shadow: 0 0 0 3px var(--color-hint-normal) !important; 
-            pointer-events: auto !important; 
-        }
-        
-        .tooltip-box {
-            position: absolute; background: white; padding: 15px; width: 300px;
-            border-left: 5px solid var(--color-accent); box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            z-index: 9002; display: none;
-        }
-        .tooltip-title { color: var(--color-header); font-weight: bold; margin-bottom: 5px; }
-        .tooltip-text { font-size: 14px; line-height: 1.4; color: #333; margin-bottom: 10px; }
-        .tooltip-btn { float: right; background: var(--color-header); color: white; padding: 5px 10px; font-size: 12px; border:none; cursor: pointer;}
-
-        /* Modal 通用樣式 */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 9400; display: none; }
-        .modal-box {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: white; padding: 20px; width: 300px; border-radius: 5px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 9500; display: none;
-        }
-        .modal-box h3 { margin-top:0; color:var(--color-header); }
-        .modal-box input { width: 100%; padding: 8px; margin: 10px 0; font-size: 16px; border: 1px solid #ccc; }
-        .modal-footer { display:flex; justify-content:space-between; margin-top: 10px; }
-        .modal-footer button { width: 48%; }
-
-    </style>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>學校財產盤點系統</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Vue 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  
+  <!-- html5-qrcode -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  
+  <!-- Material Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  
+  <style>
+    :root {
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    body {
+      -webkit-overflow-scrolling: touch;
+      background-color: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .pt-safe-top { padding-top: var(--safe-top); }
+    .pb-safe-bottom { padding-bottom: var(--safe-bottom); }
+    .property-card {
+      transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+    }
+    .property-card:active {
+      transform: scale(0.97);
+    }
+    /* QR code scanner styles */
+    #reader {
+      width: 100%;
+      min-height: 250px;
+      border-radius: 1rem;
+      overflow: hidden;
+      border: 2px solid rgba(255,255,255,0.2);
+    }
+    #reader video {
+      object-fit: cover;
+      width: 100%;
+      border-radius: 1rem;
+    }
+    #reader__dashboard_section_csr { display: flex; flex-direction: column; align-items: center; }
+    #reader__dashboard_section_swaplink { display: none; }
+  </style>
 </head>
 <body>
+<script>
+  // =========================================================================
+  // 【請注意】部署至 GitHub Pages 前，請將下方網址替換為你實際的 GAS Web App API 網址！
+  // =========================================================================
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxq_Jj9TkbezhOPFDOAVvs3UCYnqhhbnBZwKjngdEj0yzeatW1j6wFuuh5RDUwe7Jmz/exec";
+</script>
 
-    <!-- 1. 登入畫面 -->
-    <div id="login-screen">
-        <div class="login-box">
-            <div class="login-title">智慧設備借還系統</div>
-            <div class="login-ver">V14.2 最終典藏版</div>
-            <br>
-            <div class="scan-hint">請掃描身分條碼</div>
-            <input type="text" class="scan-input" id="loginInput" placeholder="" autocomplete="off">
-            <button class="tutorial-start-btn" onclick="startTutorial()">🎓 啟動新手教學模式</button>
+<div id="app" class="min-h-screen pb-safe-bottom relative flex flex-col">
+  
+
+
+  <!-- 頂部導覽區 -->
+  <header class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-lg sticky top-0 z-30 pt-safe-top">
+    <div class="px-4 py-3 flex justify-between items-center relative">
+      <h1 class="text-xl font-extrabold tracking-wide flex items-center">
+        <span class="material-icons mr-2">inventory_2</span>盤點系統
+      </h1>
+      <div class="relative flex items-center">
+        <span class="material-icons absolute left-2 text-indigo-300 text-sm">account_circle</span>
+        <input type="text" v-model="operatorName" placeholder="輸入盤點人姓名" 
+               class="pl-7 pr-2 py-1.5 rounded-full text-sm text-gray-800 bg-white/90 border-none focus:ring-2 focus:ring-yellow-300 outline-none w-36 shadow-inner transition-all focus:bg-white placeholder-gray-500 font-medium">
+      </div>
+    </div>
+    
+    <!-- 頁籤 -->
+    <div class="flex text-sm bg-black/10 backdrop-blur-sm">
+      <button @click="currentTab = 'all'" 
+              :class="{'text-yellow-300 font-bold border-b-2 border-yellow-300': currentTab === 'all', 'text-blue-100': currentTab !== 'all'}" 
+              class="flex-1 py-3 text-center transition-all duration-200">
+        全部 ({{ stats.all }})
+      </button>
+      <button @click="currentTab = 'pending'" 
+              :class="{'text-yellow-300 font-bold border-b-2 border-yellow-300': currentTab === 'pending', 'text-blue-100': currentTab !== 'pending'}" 
+              class="flex-1 py-3 text-center transition-all duration-200 relative">
+        未盤點 ({{ stats.pending }})
+        <span v-if="stats.pending > 0" class="absolute top-2 right-4 w-2 h-2 rounded-full bg-red-400 animate-pulse"></span>
+      </button>
+      <button @click="currentTab = 'done'" 
+              :class="{'text-yellow-300 font-bold border-b-2 border-yellow-300': currentTab === 'done', 'text-blue-100': currentTab !== 'done'}" 
+              class="flex-1 py-3 text-center transition-all duration-200">
+        已完成 ({{ stats.done }})
+      </button>
+    </div>
+  </header>
+
+  <!-- 搜尋與操作區 -->
+  <div class="bg-gray-50/90 backdrop-blur-md px-4 py-3 shadow-sm sticky top-[104px] z-20 flex space-x-3 border-b border-gray-200">
+    <div class="relative flex-1">
+      <span class="material-icons absolute left-3 top-2.5 text-gray-400">search</span>
+      <input type="text" v-model="searchQuery" placeholder="搜尋編號、名稱、地點..." 
+             class="w-full pl-10 pr-4 py-2 bg-white rounded-xl text-sm border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm">
+      <!-- 快速清除按鈕 -->
+      <span v-show="searchQuery" @click="searchQuery=''" class="material-icons absolute right-3 top-2.5 text-gray-400 cursor-pointer hover:text-gray-600">cancel</span>
+    </div>
+    <button @click="startScan" class="bg-gradient-to-b from-indigo-500 to-indigo-700 text-white px-5 py-2 rounded-xl shadow-md flex items-center space-x-1 active:scale-95 transition-transform duration-100">
+      <span class="material-icons text-[20px]">qr_code_scanner</span>
+      <span class="font-bold text-sm hidden sm:inline">掃描</span>
+    </button>
+  </div>
+
+  <!-- 資料載入中指示 -->
+  <div v-if="isLoading" class="flex flex-col items-center justify-center flex-1 py-24">
+    <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-100 border-t-indigo-600 mb-4 shadow-lg"></div>
+    <p class="text-indigo-700 font-bold tracking-wide animate-pulse">連線載入資料庫中...</p>
+  </div>
+
+  <!-- 錯誤提示 -->
+  <div v-if="errorMessage" class="m-4 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r-lg shadow-sm flex items-start">
+    <span class="material-icons mr-2 text-red-500 mt-0.5">error</span>
+    <span class="font-medium flex-1">{{ errorMessage }}</span>
+    <button @click="loadData" class="ml-2 text-sm text-red-600 underline font-bold whitespace-nowrap">重試</button>
+  </div>
+
+  <!-- 列表區 -->
+  <main v-if="!isLoading" class="flex-1 p-4 space-y-4 pb-24">
+    <div v-for="item in filteredList" :key="item.B" 
+         class="property-card bg-white rounded-2xl shadow-sm border border-gray-100 p-4 relative overflow-hidden" 
+         @click="openItemModal(item)">
+      
+      <!-- 左側狀態條 -->
+      <div class="absolute left-0 top-0 bottom-0 w-2" :class="item.AB === '已盤點' ? 'bg-emerald-500' : 'bg-amber-400'"></div>
+      
+      <div class="flex justify-between items-start mb-3 pl-2">
+        <div class="flex-1 pr-2">
+          <h3 class="font-bold text-gray-900 text-lg leading-tight">
+            {{ item.AQ || item.C }}
+            <span v-if="item.AQ" class="text-xs text-indigo-500 font-normal ml-1 px-1 bg-indigo-50 rounded">已修改</span>
+          </h3>
+          <p v-if="item.AT || item.D" class="text-xs text-gray-500 mt-1 leading-relaxed">
+            <span v-if="item.AT" class="text-indigo-400 font-bold mr-1">✏️</span>{{ item.AT || item.D }}
+          </p>
         </div>
-    </div>
-
-    <!-- 2. 主應用程式 -->
-    <div id="main-app">
-        <header>
-            <div class="header-content">
-                <div class="user-info" id="welcomeMsg">歡迎，資訊部 - User</div>
-            </div>
-        </header>
-
-        <div class="container-main">
-            <!-- Tabs -->
-            <div class="tabs-nav">
-                <button class="tab-btn active" id="btnTabBorrow" onclick="switchTab('borrow')">　我要借用　</button>
-                <button class="tab-btn" id="btnTabReturn" onclick="switchTab('return')">　我要歸還　</button>
-            </div>
-
-            <!-- 借用分頁 -->
-            <div id="tab-borrow" class="tab-content active">
-                <div class="borrow-split">
-                    <div class="category-list" id="categoryList"></div>
-                    <div class="items-area-wrapper">
-                        <div class="items-area" id="itemsArea">
-                            <div style="width:100%; text-align:center; color:#BDC3C7; margin-top:50px;">請選擇類別</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="cart-container" id="cartContainer">
-                    <div class="cart-label">待借清單 (點兩下移除)</div>
-                    <div class="cart-inner">
-                        <div class="cart-table-wrap">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width:15%">類別</th>
-                                        <th style="width:30%">品項名稱</th>
-                                        <th style="width:15%">財產編號</th>
-                                        <th style="width:10%">數量</th>
-                                        <th style="width:30%">備註</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="cartBody"></tbody>
-                            </table>
-                        </div>
-                        <div class="cart-actions">
-                            <button class="btn btn-cart-confirm" onclick="submitBorrow()" id="btnBorrow">確認借出</button>
-                            <button class="btn btn-cart-note" onclick="openNoteModal()" id="btnNote">填寫備註</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 歸還分頁 -->
-            <div id="tab-return" class="tab-content">
-                <div class="return-controls">
-                    <span style="font-size: 13px;">請點選歸還物品 (紅色代表已逾期)</span>
-                    <button class="btn btn-blue" style="font-size: 12px;">顯示全部</button>
-                </div>
-                <div class="return-table-wrap" id="returnTableContainer">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 15%">時間</th>
-                                <th style="width: 10%">借用人</th>
-                                <th style="width: 20%">品項</th>
-                                <th style="width: 10%">編號</th>
-                                <th style="width: 5%">數量</th>
-                                <th style="width: 15%">預計歸還</th>
-                                <th style="width: 15%">備註</th> 
-                                <th style="width: 10%">狀態</th>
-                            </tr>
-                        </thead>
-                        <tbody id="returnBody">
-                            <!-- 模擬資料 -->
-                        </tbody>
-                    </table>
-                </div>
-                <div style="padding: 10px 0; display: flex; justify-content: flex-end;">
-                     <!-- 按鈕已移除 -->
-                     <button class="btn btn-success" style="width: 150px; font-size: 16px;" id="btnReturnConfirm" onclick="submitReturn()">確認歸還</button>
-                </div>
-            </div>
-
-            <div class="footer">
-                <button class="btn btn-logout" onclick="logout()">登出 / 重置系統</button>
-                <div class="signature">System Designed by Tyl</div>
-            </div>
+        <div class="flex-shrink-0 ml-2">
+          <span v-if="item.AB === '已盤點'" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 shadow-sm">
+            <span class="material-icons text-[14px] mr-1">check_circle</span>已盤點
+          </span>
+          <span v-else class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 shadow-sm border border-amber-200">
+            <span class="material-icons text-[14px] mr-1">pending</span>未盤點
+          </span>
         </div>
-    </div>
-
-    <!-- Modal 遮罩 (共用) -->
-    <div class="modal-overlay" id="modalOverlay"></div>
-
-    <!-- 備註輸入 Modal -->
-    <div id="noteModal" class="modal-box">
-        <h3>填寫備註</h3>
-        <input type="text" id="noteInput" placeholder="請輸入內容...">
-        <div class="modal-footer">
-            <button class="btn btn-blue" onclick="saveNote()">確定</button>
-            <button class="btn" style="background:#95A5A6; color:white;" onclick="closeModal('noteModal')">取消</button>
+      </div>
+      
+      <div class="pl-2 space-y-2">
+        <div class="flex items-center text-sm text-gray-700 bg-gray-50 p-2 rounded-lg">
+          <span class="material-icons text-[18px] mr-2 text-indigo-400">qr_code_2</span>
+          <span class="font-mono font-bold tracking-wider">{{ item.B }}</span>
         </div>
-    </div>
-
-    <!-- 日期選擇 Modal -->
-    <div id="dateModal" class="modal-box">
-        <h3>選擇預計歸還日期</h3>
-        <div style="font-size:12px; color:#555; margin-bottom:5px;">請選擇您預計歸還設備的日期：</div>
-        <input type="date" id="dateInput">
-        <div class="modal-footer">
-            <button class="btn btn-accent" onclick="confirmDate()">確認借出</button>
-            <button class="btn" style="background:#95A5A6; color:white;" onclick="closeModal('dateModal')">取消</button>
+        <div class="flex items-start text-sm text-gray-600 px-1">
+          <span class="material-icons text-[18px] mr-2 text-red-400 mt-0.5">location_on</span>
+          <div>
+            <div class="font-medium">
+              <span v-if="item.AR" class="text-indigo-400 font-bold mr-1 text-xs">✏️</span>{{ item.AR || item.M || '未設定地點一' }}
+            </div>
+            <div v-if="item.AS || item.N" class="text-xs text-gray-500 mt-1 flex items-center">
+              <span class="w-1.5 h-1.5 rounded-full bg-gray-300 mr-1.5"></span>
+              <span v-if="item.AS" class="text-indigo-400 font-bold mr-1 text-xs">✏️</span>{{ item.AS || item.N }}
+            </div>
+          </div>
         </div>
+      </div>
+      
+      <div v-if="item.AB === '已盤點'" class="mt-4 pl-2 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400 font-medium">
+        <span class="flex items-center"><span class="material-icons text-[14px] mr-1">person</span>{{ item.AM }}</span>
+        <span class="flex items-center"><span class="material-icons text-[14px] mr-1">schedule</span>{{ item.AE }}</span>
+      </div>
+    </div>
+    
+    <!-- 查無資料 -->
+    <div v-if="filteredList.length === 0" class="py-16 flex flex-col items-center text-gray-400">
+      <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+        <span class="material-icons text-4xl text-gray-300">search_off</span>
+      </div>
+      <p class="font-medium text-gray-500">找不到符合條件的財產</p>
+      <p class="text-sm mt-1 text-gray-400">請嘗試更改搜尋關鍵字或切換頁籤</p>
     </div>
 
-    <!-- Tutorial Tooltip -->
-    <div class="tutorial-overlay" id="tutorialOverlay"></div>
-    <div class="tooltip-box" id="tutorialTooltip">
-        <div class="tooltip-title" id="ttTitle">標題</div>
-        <div class="tooltip-text" id="ttContent">內容</div>
-        <button class="tooltip-btn" onclick="nextTutorialStep()" id="ttBtn">下一步</button>
+    <!-- 署名 -->
+    <div class="pt-4 pb-2 flex justify-center">
+      <p class="text-[11px] text-gray-300 tracking-widest select-none">Powered by Tyl.</p>
     </div>
+  </main>
 
-    <script>
-        // --- Mock Data ---
-        const MOCK_ITEMS = {
-            "筆記型電腦": ["MacBook Pro 13", "MacBook Air M1", "ASUS ZenBook"],
-            "平板電腦": ["iPad Pro 11", "iPad Air 5"],
-            "轉接線材": ["HDMI 線 (3M)", "Type-C Hub", "VGA 轉接頭"],
-            "攝影器材": ["Canon EOS R6", "Sony A7 IV"],
-            "教室耗材": ["白板筆(黑)", "白板筆(紅)", "板擦"]
-        };
+  <!-- 掃描 Modal -->
+  <div v-show="showScanner" class="fixed inset-0 z-50 bg-black/95 flex flex-col pb-safe-bottom backdrop-blur-sm transition-opacity duration-300">
+    <div class="pt-safe-top px-4 py-4 flex justify-between items-center text-white border-b border-white/10">
+      <h2 class="text-lg font-bold flex items-center">
+        <span class="material-icons mr-2 text-indigo-400">center_focus_strong</span>掃描 QR Code
+      </h2>
+      <button @click="stopScan" class="p-2 bg-white/10 rounded-full active:bg-white/20 transition">
+        <span class="material-icons text-white">close</span>
+      </button>
+    </div>
+    <div class="flex-1 flex flex-col justify-center items-center px-6 pb-20">
+      <div class="w-full max-w-sm relative">
+        <!-- 掃描框動畫裝飾 -->
+        <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur opacity-30 animate-pulse"></div>
+        <div id="reader" class="bg-black/50 relative shadow-2xl"></div>
+      </div>
+      <p class="text-white/70 text-center mt-8 text-sm font-medium flex items-center bg-white/10 px-4 py-2 rounded-full">
+        <span class="material-icons text-sm mr-2 animate-bounce">arrow_downward</span>請將 QR Code 置於方框內
+      </p>
+    </div>
+  </div>
 
-        const MOCK_RETURN_DATA = [
-            { time: "2023/11/20 09:30", user: "User", item: "MacBook Pro M2", id: "NB-001", qty: 1, due: "2023/11/21", note: "教學用", status: "逾期", overdue: true },
-            { time: "2023/11/28 10:00", user: "User", item: "HDMI 轉接線", id: "", qty: 1, due: "2023/11/28", note: "", status: "借用中", overdue: false }
-        ];
-
-        let cart = [];
-        let selectedCartIndex = -1; 
-        let selectedReturnIndex = -1; 
+  <!-- 盤點操作 Modal -->
+  <div v-if="selectedItem" class="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm transition-opacity duration-300">
+    <div class="bg-white w-full sm:w-full max-w-md rounded-t-3xl sm:rounded-2xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+      <!-- Modal Header -->
+      <div class="bg-gradient-to-r from-gray-50 to-white px-5 py-4 flex justify-between items-center border-b border-gray-100">
+        <div class="flex items-center space-x-3">
+          <h2 class="text-lg font-extrabold text-gray-800 flex items-center">
+            <span class="material-icons text-indigo-600 mr-2">edit_document</span>盤點作業
+          </h2>
+          <button @click="openRemarkModal" class="flex items-center px-2 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold hover:bg-amber-200 transition-colors">
+            <span class="material-icons text-[14px] mr-1">sticky_note_2</span>備註
+          </button>
+        </div>
+        <button @click="closeItemModal" class="text-gray-400 hover:text-gray-600 p-1.5 bg-gray-100 rounded-full">
+          <span class="material-icons text-[20px]">close</span>
+        </button>
+      </div>
+      
+      <!-- Modal Body -->
+      <div class="p-5 overflow-y-auto flex-1">
+        <!-- 原始資料區卡片 -->
+        <div class="bg-indigo-50/50 rounded-xl p-4 mb-6 border border-indigo-100 relative overflow-hidden">
+          <div class="absolute top-0 left-0 w-1 h-full bg-indigo-400"></div>
+          <div class="grid grid-cols-[70px_1fr] gap-y-2.5 text-sm">
+            <div class="text-indigo-400/80 font-bold">編號</div>
+            <div class="font-mono font-bold text-indigo-900 tracking-wider">{{ selectedItem.B }}</div>
+            
+            <div class="text-indigo-400/80 font-bold">名稱</div>
+            <div class="text-gray-800 font-bold">{{ selectedItem.AQ || selectedItem.C }}</div>
+            
+            <div class="text-indigo-400/80 font-bold">保管人</div>
+            <div class="text-gray-800 font-bold">{{ selectedItem.AU || selectedItem.K || '無' }}</div>
+            
+            <div class="text-indigo-400/80 font-bold">特徵/說明</div>
+            <div class="text-gray-800 text-xs">{{ selectedItem.AT || selectedItem.D || '無' }}</div>
+            
+            <div class="text-indigo-400/80 font-bold">地點一</div>
+            <div class="text-gray-800">{{ selectedItem.AR || selectedItem.M || '無' }}</div>
+            
+            <div class="text-indigo-400/80 font-bold">地點二</div>
+            <div class="text-gray-800">{{ selectedItem.AS || selectedItem.N || '無' }}</div>
+          </div>
+        </div>
         
-        let isTutorialMode = false;
-        let tutorialStep = 0;
+        <div class="flex items-center space-x-2 text-xs font-bold text-gray-400 mb-4 px-1">
+          <div class="flex-1 h-px bg-gray-200"></div>
+          <span>資料如有異動請於下方修改</span>
+          <div class="flex-1 h-px bg-gray-200"></div>
+        </div>
+        
+        <!-- 編輯表單 -->
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm text-gray-700 mb-1.5 font-bold pl-1">修正保管人</label>
+            <input type="text" v-model="editForm.modifiedCustodian" 
+                   class="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm placeholder-gray-300"
+                   placeholder="若無修改請維持原狀">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-700 mb-1.5 font-bold pl-1">修正名稱</label>
+            <input type="text" v-model="editForm.modifiedName" 
+                   class="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm placeholder-gray-300"
+                   placeholder="若無修改請維持原狀">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-700 mb-1.5 font-bold pl-1">修正特徵及說明</label>
+            <textarea v-model="editForm.modifiedDesc" rows="2"
+                   class="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm placeholder-gray-300"
+                   placeholder="若無修改請維持原狀"></textarea>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-700 mb-1.5 font-bold pl-1">修正地點一</label>
+            <input type="text" v-model="editForm.modifiedLoc1" 
+                   class="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm placeholder-gray-300">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-700 mb-1.5 font-bold pl-1">修正地點二</label>
+            <input type="text" v-model="editForm.modifiedLoc2" 
+                   class="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm placeholder-gray-300">
+          </div>
+          <div class="flex space-x-4 mt-4 bg-gray-50 p-3 rounded-xl border border-gray-200">
+            <label class="flex items-center space-x-2 cursor-pointer flex-1 justify-center">
+              <input type="checkbox" v-model="editForm.isScrap" class="w-5 h-5 text-red-600 rounded border-gray-300 focus:ring-red-500">
+              <span class="text-sm font-bold text-gray-700">申請報廢</span>
+            </label>
+            <div class="w-px bg-gray-300"></div>
+            <label class="flex items-center space-x-2 cursor-pointer flex-1 justify-center">
+              <input type="checkbox" v-model="editForm.isReprintLabel" class="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
+              <span class="text-sm font-bold text-gray-700">補印標籤</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Modal Footer -->
+      <div class="p-5 bg-white border-t border-gray-100 pb-safe-bottom shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <button @click="submitInventory" :disabled="isSubmitting" 
+                class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-indigo-200 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98] flex justify-center items-center transition-all disabled:opacity-70 disabled:active:scale-100">
+          <span v-if="isSubmitting" class="material-icons animate-spin mr-2">refresh</span>
+          <span class="material-icons mr-2" v-else>check_circle</span>
+          {{ isSubmitting ? '資料儲存中...' : '確認完成盤點' }}
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 獨立備註 Modal -->
+  <div v-if="showRemarkModal" class="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300">
+    <div class="bg-white w-full max-w-sm rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+      <div class="bg-gradient-to-r from-amber-50 to-white px-5 py-4 flex justify-between items-center border-b border-amber-100">
+        <h2 class="text-lg font-extrabold text-gray-800 flex items-center">
+          <span class="material-icons text-amber-500 mr-2">sticky_note_2</span>填寫備註
+        </h2>
+        <button @click="closeRemarkModal" class="text-gray-400 hover:text-gray-600 p-1.5 bg-gray-100 rounded-full">
+          <span class="material-icons text-[20px]">close</span>
+        </button>
+      </div>
+      <div class="p-5">
+        <p class="text-xs text-gray-500 mb-3">獨立儲存備註，不會改變此財產的盤點狀態。</p>
+        <textarea v-model="remarkText" rows="4"
+               class="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none transition-all shadow-sm placeholder-gray-300"
+               placeholder="請輸入備註內容..."></textarea>
+      </div>
+      <div class="p-4 bg-gray-50 border-t border-gray-100 flex space-x-3">
+        <button @click="closeRemarkModal" class="flex-1 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-xl font-bold text-sm shadow-sm hover:bg-gray-50 transition-colors">取消</button>
+        <button @click="submitRemark" :disabled="isSubmittingRemark" 
+                class="flex-1 py-2.5 bg-amber-500 text-white rounded-xl font-bold text-sm shadow-md hover:bg-amber-600 transition-colors disabled:opacity-70 flex justify-center items-center">
+          <span v-if="isSubmittingRemark" class="material-icons animate-spin mr-1 text-[16px]">refresh</span>
+          {{ isSubmittingRemark ? '儲存中...' : '儲存備註' }}
+        </button>
+      </div>
+    </div>
+  </div>
 
-        // --- Init ---
-        window.onload = function() {
-            document.getElementById('loginInput').focus();
-            initCategoryList();
-            renderReturnTable();
-            document.getElementById('dateInput').valueAsDate = new Date();
+  <!-- Toast 通知 (Snack bar) -->
+  <div class="fixed top-14 left-0 w-full flex justify-center z-[100] pointer-events-none transition-all duration-300"
+       :class="toast.show ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0'">
+    <div :class="{'bg-emerald-600 text-white': toast.type === 'success', 'bg-red-600 text-white': toast.type === 'error', 'bg-gray-800 text-white': toast.type === 'info'}" 
+         class="px-5 py-3 rounded-full shadow-xl flex items-center space-x-2 border border-black/10">
+      <span class="material-icons text-sm">{{ toast.icon }}</span>
+      <span class="font-bold text-sm tracking-wide">{{ toast.message }}</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+
+  createApp({
+    setup() {
+      // --- 狀態變數 ---
+      const inventoryList = ref([]);
+      const isLoading = ref(true);
+      const isSubmitting = ref(false);
+      const errorMessage = ref('');
+      const operatorName = ref(localStorage.getItem('gas_inventory_op_name') || '');
+      const currentTab = ref('pending'); // 'all', 'pending', 'done'
+      const searchQuery = ref('');
+      const showScanner = ref(false);
+      
+      const selectedItem = ref(null);
+      const editForm = ref({
+        modifiedName: '',
+        modifiedLoc1: '',
+        modifiedLoc2: '',
+        modifiedDesc: ''
+      });
+      
+      const toast = ref({ show: false, message: '', type: 'success', icon: 'check' });
+
+      // 獨立備註 Modal 狀態（原本漏了這三個 ref 宣告，會導致 setup() 在 return 時拋 ReferenceError、整頁白畫面）
+      const showRemarkModal = ref(false);
+      const remarkText = ref('');
+      const isSubmittingRemark = ref(false);
+
+      // --- 監聽與生命週期 ---
+      watch(operatorName, (newVal) => {
+        localStorage.setItem('gas_inventory_op_name', newVal);
+      });
+
+      const loadData = async () => {
+        isLoading.value = true;
+        errorMessage.value = '';
+        
+        // 如果還沒有設定 GAS_API_URL，使用模擬資料
+        if (GAS_API_URL === "請在此填入部署後的_GAS_API_網址" || GAS_API_URL === "") {
+          setTimeout(() => {
+            inventoryList.value = [
+              {rowIndex:2, B:'1120101', C:'筆記型電腦 (本機模擬測試)', D:'ASUS, 黑色, 8GB RAM', K:'資訊組長', M:'電腦教室一', N:'櫃子A', AB:'', AE:'', AM:'', AN:'', AP:'', AQ:'', AR:'', AS:'', AT:'', AU:'', AV:'', AW:'', AX:''},
+              {rowIndex:3, B:'1120102', C:'投影機', D:'Epson, 吊掛式', K:'總務處', M:'會議室', N:'', AB:'已盤點', AE:'2023/10/01', AM:'王大明', AN:'', AP:'', AQ:'', AR:'', AS:'', AT:'', AU:'', AV:'', AW:'', AX:''},
+              {rowIndex:4, B:'1120103', C:'辦公桌', D:'木製, 120x60cm', K:'林老師', M:'教師辦公室', N:'角落', AB:'', AE:'', AM:'', AN:'', AP:'', AQ:'', AR:'', AS:'', AT:'', AU:'', AV:'', AW:'', AX:''}
+            ];
+            isLoading.value = false;
+          }, 1000);
+          return;
+        }
+
+        try {
+          const response = await fetch(GAS_API_URL);
+          if (!response.ok) throw new Error('API 回應錯誤: ' + response.status);
+          
+          const data = await response.json();
+          if (data.error) {
+            errorMessage.value = data.error;
+          } else {
+            inventoryList.value = data;
+          }
+        } catch (error) {
+          errorMessage.value = '無法連線至資料庫，請檢查網路連線或 API 網址是否正確。 (' + error.message + ')';
+        } finally {
+          isLoading.value = false;
+        }
+      };
+
+      onMounted(() => {
+        loadData();
+      });
+
+      // --- 計算屬性 (過濾與統計) ---
+      const stats = computed(() => {
+        const done = inventoryList.value.filter(i => i.AB === '已盤點').length;
+        return {
+          all: inventoryList.value.length,
+          done: done,
+          pending: inventoryList.value.length - done
+        };
+      });
+
+      const filteredList = computed(() => {
+        let list = inventoryList.value;
+        
+        if (currentTab.value === 'pending') {
+          list = list.filter(i => i.AB !== '已盤點');
+        } else if (currentTab.value === 'done') {
+          list = list.filter(i => i.AB === '已盤點');
+        }
+        
+        if (searchQuery.value.trim()) {
+          const q = searchQuery.value.toLowerCase().trim();
+          list = list.filter(i => {
+            const b = i.B ? i.B.toString().toLowerCase() : '';
+            const c = i.C ? i.C.toString().toLowerCase() : '';
+            const d = i.D ? i.D.toString().toLowerCase() : '';
+            const k = i.M ? i.M.toString().toLowerCase() : '';
+            const l = i.N ? i.N.toString().toLowerCase() : '';
+            return b.includes(q) || c.includes(q) || d.includes(q) || k.includes(q) || l.includes(q);
+          });
+        }
+        return list;
+      });
+
+      // --- 方法 (UI 行為) ---
+      const showToast = (message, type = 'success', duration = 3000) => {
+        toast.value = { 
+          show: true, 
+          message, 
+          type, 
+          icon: type === 'success' ? 'check_circle' : (type === 'error' ? 'error_outline' : 'info')
+        };
+        setTimeout(() => { toast.value.show = false; }, duration);
+      };
+
+      // --- 掃描器邏輯 ---
+      // 使用 Html5Qrcode (非 Html5QrcodeScanner)，獲取最高 UI 控制權
+      let html5QrCode = null;
+
+      const startScan = () => {
+        showScanner.value = true;
+        // 用 nextTick 確保 #reader div 已掛載，同時保留 User Gesture Token
+        nextTick(() => {
+          if (html5QrCode === null) {
+            html5QrCode = new Html5Qrcode("reader");
+          }
+          const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+          };
+          html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            (decodedText) => {
+              stopScan();
+              handleScannedCode(decodedText);
+            },
+            () => { /* 對焦失敗，靜默略過 */ }
+          ).catch((err) => {
+            console.error("相機啟動失敗", err);
+            stopScan();
+            showToast('無法啟動相機，請確認已給予相機權限', 'error', 5000);
+          });
+        });
+      };
+
+      const stopScan = () => {
+        if (html5QrCode && html5QrCode.isScanning) {
+          html5QrCode.stop().catch(e => {});
+        }
+        showScanner.value = false;
+      };
+
+      const onScanSuccess = (decodedText) => {
+        // 成功掃描後先停止鏡頭
+        stopScan();
+        handleScannedCode(decodedText);
+      };
+
+      const handleScannedCode = (text) => {
+        let code = text;
+        if (code.startsWith("888!")) {
+          code = code.substring(4);
+        }
+        
+        const item = inventoryList.value.find(i => i.B && i.B.toString() === code);
+        
+        if (item) {
+          showToast(`掃描成功：${code}`, 'success', 2000);
+          openItemModal(item);
+        } else {
+          showToast(`資料庫中找不到編號 [${code}] 的財產`, 'error', 4000);
+          searchQuery.value = code;
+        }
+      };
+
+      // --- Modal 表單邏輯 ---
+      const openItemModal = (item) => {
+        if (!operatorName.value.trim()) {
+          showToast('請先在右上角輸入您的「盤點人姓名」', 'error', 4000);
+          return;
+        }
+        
+        selectedItem.value = item;
+        editForm.value = {
+          modifiedCustodian: item.AU || item.K || '',
+          modifiedName: item.AQ || item.C || '',
+          modifiedLoc1: item.AR || item.M || '',
+          modifiedLoc2: item.AS || item.N || '',
+          modifiedDesc: item.AT || item.D || '',
+          isScrap: item.AV === '是',
+          isReprintLabel: item.AW === '是'
+        };
+      };
+
+      const closeItemModal = () => {
+        selectedItem.value = null;
+      };
+
+      const submitInventory = async () => {
+        const item = selectedItem.value;
+        const form = editForm.value;
+        const itemIndex = inventoryList.value.findIndex(i => i.B === item.B);
+        if (itemIndex < 0) return;
+        const oriItem = inventoryList.value[itemIndex];
+
+        if (!operatorName.value.trim()) {
+          showToast('請先在上方輸入您的姓名 (盤點人)', 'error');
+          return;
+        }
+
+        const realModifiedCustodian = form.modifiedCustodian !== (oriItem.AU || oriItem.K) ? form.modifiedCustodian : '';
+        const realModifiedName = form.modifiedName !== (oriItem.AQ || oriItem.C) ? form.modifiedName : '';
+        const realModifiedLoc1 = form.modifiedLoc1 !== (oriItem.AR || oriItem.M) ? form.modifiedLoc1 : '';
+        const realModifiedLoc2 = form.modifiedLoc2 !== (oriItem.AS || oriItem.N) ? form.modifiedLoc2 : '';
+        const realModifiedDesc = form.modifiedDesc !== (oriItem.AT || oriItem.D) ? form.modifiedDesc : '';
+
+        const updateData = {
+          rowIndex: item.rowIndex,
+          operatorName: operatorName.value.trim(),
+          modifiedCustodian: realModifiedCustodian,
+          modifiedName: realModifiedName,
+          modifiedLoc1: realModifiedLoc1,
+          modifiedLoc2: realModifiedLoc2,
+          modifiedDesc: realModifiedDesc,
+          isScrap: form.isScrap,
+          isReprintLabel: form.isReprintLabel
         };
 
-        document.getElementById('loginInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') { performLogin(this.value); }
-        });
-
-        // --- Borrow Logic ---
-        function initCategoryList() {
-            const list = document.getElementById('categoryList');
-            list.innerHTML = '';
-            Object.keys(MOCK_ITEMS).forEach(cat => {
-                const div = document.createElement('div');
-                div.className = 'cat-item';
-                div.innerText = cat;
-                div.onclick = () => selectCategory(cat, div);
-                list.appendChild(div);
-            });
+        // 模擬資料模式（尚未設定 API 網址）
+        if (GAS_API_URL === "請在此填入部署後的_GAS_API_網址" || GAS_API_URL === "") {
+          updateLocalItemStatus(oriItem.B, form);
+          showToast('模擬測試：盤點與資料修改成功！', 'success');
+          closeItemModal();
+          return;
         }
 
-        function selectCategory(category, element) {
-            document.querySelectorAll('.cat-item').forEach(el => el.classList.remove('selected'));
-            if(element) element.classList.add('selected');
-
-            const area = document.getElementById('itemsArea');
-            area.innerHTML = '';
-            const items = MOCK_ITEMS[category] || [];
-            
-            items.forEach(item => {
-                const btn = document.createElement('div');
-                btn.className = 'item-card';
-                btn.innerText = item;
-                btn.onclick = () => addToCart(category, item);
-                area.appendChild(btn);
-            });
-
-            if (isTutorialMode && tutorialStep === 1) nextTutorialStep();
+        // === 樂觀更新 ===
+        // 先存一份快照，畫面立刻變「已盤點」並關閉視窗，實際寫入在背景進行。
+        // 萬一伺服器或網路失敗，再把這筆資料還原並提示，避免「以為存到、其實沒存」。
+        const snapshot = { ...oriItem };
+        updateLocalItemStatus(oriItem.B, form);
+        showToast('盤點成功！', 'success', 2000);
+        closeItemModal();
+        if (currentTab.value === 'pending' && stats.value.pending === 0) {
+          currentTab.value = 'all';
         }
 
-        function addToCart(cat, item) {
-            const id = (cat.includes('耗材') || cat.includes('線材')) ? '' : 'A' + Math.floor(Math.random() * 10000);
-            cart.push({ cat, item, id, qty: 1, note: '' });
-            renderCart();
-            if (isTutorialMode && tutorialStep === 2) nextTutorialStep();
-        }
-
-        function renderCart() {
-            const tbody = document.getElementById('cartBody');
-            tbody.innerHTML = '';
-            selectedCartIndex = -1; 
-
-            cart.forEach((c, idx) => {
-                const tr = document.createElement('tr');
-                tr.onclick = () => selectCartRow(idx, tr);
-                tr.ondblclick = () => removeFromCart(idx);
-                tr.innerHTML = `<td>${c.cat}</td><td>${c.item}</td><td>${c.id}</td><td>${c.qty}</td><td>${c.note}</td>`;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function selectCartRow(idx, trElement) {
-            selectedCartIndex = idx;
-            const rows = document.getElementById('cartBody').querySelectorAll('tr');
-            rows.forEach(r => r.classList.remove('selected-row'));
-            trElement.classList.add('selected-row');
-        }
-
-        function removeFromCart(idx) {
-            cart.splice(idx, 1);
-            renderCart();
-        }
-
-        // --- Modal Logic ---
-        function openNoteModal() {
-            if (selectedCartIndex === -1) {
-                alert("請先點選下方清單中的一項物品，再填寫備註。");
-                return;
-            }
-            const currentNote = cart[selectedCartIndex].note;
-            document.getElementById('noteInput').value = currentNote;
-            document.getElementById('modalOverlay').style.display = 'block';
-            document.getElementById('noteModal').style.display = 'block';
-            document.getElementById('noteInput').focus();
-        }
-
-        function closeModal(modalId) {
-            document.getElementById('modalOverlay').style.display = 'none';
-            document.getElementById(modalId).style.display = 'none';
-        }
-
-        function saveNote() {
-            const val = document.getElementById('noteInput').value;
-            if (selectedCartIndex !== -1) {
-                cart[selectedCartIndex].note = val;
-                renderCart();
-            }
-            closeModal('noteModal');
-            if (isTutorialMode && tutorialStep === 3) nextTutorialStep();
-        }
-
-        function submitBorrow() {
-            if(cart.length === 0) return alert("購物車是空的！");
-            
-            if (isTutorialMode && tutorialStep === 3) {
-                 tutorialStep = 4;
-            }
-
-            // 開啟日期選擇 Modal
-            document.getElementById('modalOverlay').style.display = 'block';
-            document.getElementById('dateModal').style.display = 'block';
-            
-            if (isTutorialMode && tutorialStep === 4) {
-                document.getElementById('tutorialTooltip').style.display = 'none';
-            }
-        }
-
-        function confirmDate() {
-            const dateVal = document.getElementById('dateInput').value;
-            if(!dateVal) return alert("請選擇日期！");
-            
-            closeModal('dateModal');
-            
-            // --- 更新歸還列表 ---
-            const now = new Date();
-            const timeStr = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
-            const dueStr = dateVal.replace(/-/g, '/'); // 正規化日期格式
-
-            cart.forEach(c => {
-                MOCK_RETURN_DATA.push({
-                    time: timeStr,
-                    user: "User",
-                    item: c.item,
-                    id: c.id,
-                    qty: c.qty,
-                    due: dueStr,
-                    note: c.note,
-                    status: "借用中",
-                    overdue: false
-                });
-            });
-
-            renderReturnTable();
-            // ------------------
-
-            alert(`借用成功！\n預計歸還日：${dateVal}\n資料已寫入紀錄表。`);
-            cart = [];
-            renderCart();
-
-            if(isTutorialMode && tutorialStep === 4) {
-                 document.getElementById('tutorialTooltip').style.display = 'block'; 
-                 nextTutorialStep(); 
-            }
-        }
-
-        // --- Return Logic ---
-        function renderReturnTable() {
-            const tbody = document.getElementById('returnBody');
-            tbody.innerHTML = '';
-            selectedReturnIndex = -1;
-
-            MOCK_RETURN_DATA.forEach((data, idx) => {
-                const tr = document.createElement('tr');
-                const overdueClass = data.overdue ? 'overdue' : '';
-                
-                tr.onclick = () => selectReturnRow(idx, tr);
-                
-                tr.innerHTML = `
-                    <td>${data.time}</td>
-                    <td>${data.user}</td>
-                    <td>${data.item}</td>
-                    <td>${data.id}</td>
-                    <td>${data.qty}</td>
-                    <td class="${overdueClass}">${data.due}</td>
-                    <td>${data.note}</td>
-                    <td class="${overdueClass}">${data.status}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function selectReturnRow(idx, trElement) {
-            selectedReturnIndex = idx;
-            const rows = document.getElementById('returnBody').querySelectorAll('tr');
-            rows.forEach(r => r.classList.remove('selected-row'));
-            trElement.classList.add('selected-row');
-
-            if(isTutorialMode && tutorialStep === 6) nextTutorialStep();
-        }
-
-        function submitReturn() {
-            if(selectedReturnIndex === -1) return alert("請先點選要歸還的物品！");
-            alert("歸還成功！");
-            MOCK_RETURN_DATA.splice(selectedReturnIndex, 1);
-            renderReturnTable();
-            
-            if(isTutorialMode) {
-                endTutorial();
-                alert("🎓 恭喜！您已完成所有借還教學。");
-            }
-        }
-
-        // --- System Logic ---
-        function performLogin(val) {
-            document.getElementById('login-screen').style.opacity = '0';
-            setTimeout(() => {
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('main-app').style.display = 'flex';
-            }, 500);
-        }
-
-        function logout() {
-            document.getElementById('main-app').style.display = 'none';
-            document.getElementById('login-screen').style.display = 'flex';
-            document.getElementById('login-screen').style.opacity = '1';
-            document.getElementById('loginInput').value = '';
-            document.getElementById('loginInput').focus();
-            cart = [];
-            renderCart();
-            // 只保留前兩筆預設資料做為重置狀態 (如果需要完全重置可重新宣告)
-            // 這裡簡單重整網頁最快
-            if(MOCK_RETURN_DATA.length !== 2) location.reload(); 
-            endTutorial();
-        }
-
-        function switchTab(tab) {
-            const tabs = document.querySelectorAll('.tab-btn');
-            const contents = document.querySelectorAll('.tab-content');
-            
-            tabs.forEach(t => t.classList.remove('active'));
-            contents.forEach(c => c.classList.remove('active'));
-
-            if(tab === 'borrow') {
-                tabs[0].classList.add('active');
-                document.getElementById('tab-borrow').classList.add('active');
-            } else {
-                tabs[1].classList.add('active');
-                document.getElementById('tab-return').classList.add('active');
-            }
-
-            if(isTutorialMode && tutorialStep === 5 && tab === 'return') nextTutorialStep();
-        }
-
-        // --- Tutorial Logic ---
-        const tutorialSteps = [
-            {
-                target: 'categoryList',
-                title: '步驟 1: 選擇類別',
-                content: '現在畫面已被鎖定，您只能操作指定的步驟。\n請點選左側的一個類別 (如: 筆記型電腦)。',
-                pos: 'right', hideBtn: true
+        try {
+          const response = await fetch(GAS_API_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'text/plain;charset=utf-8',
             },
-            {
-                target: 'itemsArea',
-                title: '步驟 2: 點選物品',
-                content: '右側出現了該類別的物品。\n請點擊按鈕將物品加入清單。',
-                pos: 'left', hideBtn: true
-            },
-            {
-                target: 'cartContainer',
-                title: '步驟 3: 填寫備註',
-                content: '請「點選」下方清單中的物品，然後按右邊的「填寫備註」。\n(或直接按「確認借出」跳過)',
-                pos: 'top', hideBtn: true
-            },
-            {
-                target: 'btnBorrow',
-                title: '步驟 4: 確認與日期選擇',
-                content: '請按下「確認借出」，系統會跳出日期選單，請選擇歸還日期並確認。',
-                pos: 'left', hideBtn: true
-            },
-            {
-                target: 'btnTabReturn',
-                title: '步驟 5: 切換歸還頁面',
-                content: '借用完成！\n接下來請點擊上方的「我要歸還」分頁。',
-                pos: 'bottom', hideBtn: true
-            },
-            {
-                target: 'returnTableContainer',
-                title: '步驟 6: 選取歸還物品',
-                content: '請點擊表格中的任一項目，將其反白選取。',
-                pos: 'top', hideBtn: true
-            },
-            {
-                target: 'btnReturnConfirm',
-                title: '步驟 7: 確認歸還',
-                content: '選取後，按下右下角的「確認歸還」按鈕，即可完成手續。',
-                pos: 'left', hideBtn: true
+            body: JSON.stringify(updateData)
+          });
+          const result = await response.json();
+          if (!result.success) throw new Error(result.message || '伺服器回報儲存失敗');
+        } catch (error) {
+          // 寫入失敗：還原這筆資料的狀態，並明確提示需重新盤點
+          const idx = inventoryList.value.findIndex(i => i.B === snapshot.B);
+          if (idx > -1) inventoryList.value[idx] = snapshot;
+          showToast('「' + (snapshot.AQ || snapshot.C || snapshot.B) + '」儲存失敗，已還原，請重新盤點', 'error', 6000);
+        }
+      };
+
+      // 即時更新前端記憶體資料，不需重新撈取 DB
+      const updateLocalItemStatus = (id, newValues) => {
+        const itemIndex = inventoryList.value.findIndex(i => i.B === id);
+        if (itemIndex > -1) {
+          const item = inventoryList.value[itemIndex];
+          const now = new Date();
+          
+          item.AB = '已盤點';
+          item.AE = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}`;
+          item.AM = operatorName.value.trim();
+          
+          // 如果有異動，也要將異動紀錄寫入本地，讓列表能即時(雖未顯示這些欄位，但可維持資料一致性)
+          if (newValues.modifiedCustodian && newValues.modifiedCustodian !== item.K) { item.AU = newValues.modifiedCustodian; item.AP = 'TRUE'; }
+          if (newValues.modifiedName && newValues.modifiedName !== item.C) { item.AQ = newValues.modifiedName; item.AP = 'TRUE'; }
+          if (newValues.modifiedLoc1 && newValues.modifiedLoc1 !== item.M) { item.AR = newValues.modifiedLoc1; item.AP = 'TRUE'; }
+          if (newValues.modifiedLoc2 && newValues.modifiedLoc2 !== item.N) { item.AS = newValues.modifiedLoc2; item.AP = 'TRUE'; }
+          if (newValues.modifiedDesc && newValues.modifiedDesc !== item.D) { item.AT = newValues.modifiedDesc; item.AP = 'TRUE'; }
+          if (newValues.isScrap) { item.AV = '是'; item.AP = 'TRUE'; } else { item.AV = ''; }
+          if (newValues.isReprintLabel) { item.AW = '是'; item.AP = 'TRUE'; } else { item.AW = ''; }
+          
+          // 重新賦值以觸發 Vue 響應式更新
+          inventoryList.value[itemIndex] = {...item};
+        }
+      };
+
+      
+      const openRemarkModal = () => {
+        if (!selectedItem.value) return;
+        remarkText.value = selectedItem.value.AX || '';
+        showRemarkModal.value = true;
+      };
+      
+      const closeRemarkModal = () => {
+        showRemarkModal.value = false;
+      };
+      
+      const submitRemark = async () => {
+        const item = selectedItem.value;
+        const oriItem = inventoryList.value.find(i => i.B === item.B);
+
+        if (!operatorName.value.trim()) {
+          showToast('請先在上方輸入您的姓名', 'error');
+          return;
+        }
+
+        const updateData = {
+          action: 'updateRemark',
+          rowIndex: item.rowIndex,
+          operatorName: operatorName.value.trim(),
+          remark: remarkText.value
+        };
+
+        isSubmittingRemark.value = true;
+
+        if (GAS_API_URL === "請在此填入部署後的_GAS_API_網址" || GAS_API_URL === "") {
+          setTimeout(() => {
+            isSubmittingRemark.value = false;
+            // update local remark
+            const itemIndex = inventoryList.value.findIndex(i => i.B === oriItem.B);
+            if (itemIndex > -1) {
+              inventoryList.value[itemIndex].AX = remarkText.value;
+              const now = new Date();
+              inventoryList.value[itemIndex].AM = operatorName.value.trim();
+              inventoryList.value[itemIndex].AN = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
             }
-        ];
-
-        function startTutorial() {
-            isTutorialMode = true;
-            document.getElementById('loginInput').value = "A123456789";
-            performLogin("A123456789");
-            setTimeout(() => { tutorialStep = 1; showStep(0); }, 600);
+            showToast('模擬測試：備註儲存成功！', 'success');
+            closeRemarkModal();
+          }, 800);
+          return;
         }
 
-        function showStep(idx) {
-            const step = tutorialSteps[idx];
-            const targetEl = document.getElementById(step.target);
-            const tooltip = document.getElementById('tutorialTooltip');
-            const overlay = document.getElementById('tutorialOverlay');
-
-            document.querySelectorAll('.highlight-target').forEach(e => e.classList.remove('highlight-target'));
-            
-            overlay.style.display = 'block';
-            tooltip.style.display = 'block';
-            
-            targetEl.classList.add('highlight-target');
-
-            document.getElementById('ttTitle').innerText = step.title;
-            document.getElementById('ttContent').innerText = step.content;
-            
-            const btn = document.getElementById('ttBtn');
-            btn.style.display = step.hideBtn ? 'none' : 'block';
-
-            // Positioning
-            const rect = targetEl.getBoundingClientRect();
-            let top, left;
-
-            if(step.pos === 'right') {
-                top = rect.top; left = rect.right + 20;
-            } else if (step.pos === 'left') {
-                top = rect.top; left = rect.left - 320;
-            } else if (step.pos === 'top') {
-                top = rect.top - 150; left = rect.left + 50;
-            } else if (step.pos === 'bottom') {
-                top = rect.bottom + 20; left = rect.left;
+        try {
+          const response = await fetch(GAS_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(updateData)
+          });
+          const result = await response.json();
+          if (result.success) {
+            const itemIndex = inventoryList.value.findIndex(i => i.B === oriItem.B);
+            if (itemIndex > -1) {
+              inventoryList.value[itemIndex].AX = remarkText.value;
+              const now = new Date();
+              inventoryList.value[itemIndex].AM = operatorName.value.trim();
+              inventoryList.value[itemIndex].AN = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
             }
-            
-            if(top < 10) top = 10;
-            if(left < 10) left = 10;
-            
-            tooltip.style.top = top + "px";
-            tooltip.style.left = left + "px";
+            showToast('備註儲存成功！', 'success');
+            closeRemarkModal();
+          } else {
+            showToast(result.message, 'error');
+          }
+        } catch (error) {
+          showToast('網路連線異常，備註儲存失敗', 'error');
+        } finally {
+          isSubmittingRemark.value = false;
         }
+      };
 
-        function nextTutorialStep() {
-            tutorialStep++;
-            const idx = tutorialStep - 1;
-            if(idx < tutorialSteps.length) showStep(idx);
-            else endTutorial();
-        }
-
-        function endTutorial() {
-            isTutorialMode = false;
-            tutorialStep = 0;
-            document.getElementById('tutorialOverlay').style.display = 'none';
-            document.getElementById('tutorialTooltip').style.display = 'none';
-            document.querySelectorAll('.highlight-target').forEach(e => e.classList.remove('highlight-target'));
-        }
-    </script>
+      return {
+        inventoryList, isLoading, isSubmitting, errorMessage,
+        operatorName, currentTab, searchQuery, stats, filteredList,
+        showRemarkModal, remarkText, isSubmittingRemark, openRemarkModal, closeRemarkModal, submitRemark,
+        showScanner, startScan, stopScan, handleScannedCode, loadData,
+        selectedItem, editForm, openItemModal, closeItemModal, submitInventory,
+        toast
+      };
+    }
+  }).mount('#app');
+</script>
 </body>
 </html>
