@@ -65,35 +65,26 @@
 
   <!-- 頂部導覽區（整個控制列固定在頂端） -->
   <header class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-lg sticky top-0 z-30 pt-safe-top">
-    <div class="px-4 py-3 flex justify-between items-center relative">
-      <h1 class="text-xl font-extrabold tracking-wide flex items-center">
-        <span class="material-icons mr-2">inventory_2</span>盤點系統
+    <div class="px-3 py-2.5 flex items-center gap-2">
+      <h1 class="text-base font-extrabold tracking-wide flex items-center flex-shrink-0">
+        <span class="material-icons mr-1 text-[20px]">inventory_2</span>盤點系統
       </h1>
-      <div class="relative flex items-center">
-        <span class="material-icons absolute left-2 text-indigo-300 text-sm">account_circle</span>
-        <input type="text" v-model="operatorName" placeholder="輸入盤點人姓名"
-               class="pl-7 pr-2 py-1.5 rounded-full text-sm text-gray-800 bg-white/90 border-none focus:ring-2 focus:ring-yellow-300 outline-none w-36 shadow-inner transition-all focus:bg-white placeholder-gray-500 font-medium">
+      <!-- 中間：狀態切換（取代原本的大頁籤，按一下即可切換全部／未盤點／已完成） -->
+      <div class="relative flex-1 min-w-0">
+        <select v-model="currentTab"
+                class="w-full appearance-none bg-white/95 text-gray-800 text-sm font-bold rounded-full pl-3 pr-7 py-1.5 outline-none focus:ring-2 focus:ring-yellow-300 shadow-inner truncate">
+          <option value="all">全部 ({{ stats.all }})</option>
+          <option value="pending">未盤點 ({{ stats.pending }})</option>
+          <option value="done">已完成 ({{ stats.done }})</option>
+        </select>
+        <span class="material-icons absolute right-1.5 top-1.5 text-gray-500 text-[18px] pointer-events-none">unfold_more</span>
       </div>
-    </div>
-
-    <!-- 頁籤 -->
-    <div class="flex text-sm bg-black/10 backdrop-blur-sm">
-      <button @click="currentTab = 'all'"
-              :class="{'text-yellow-300 font-bold border-b-2 border-yellow-300': currentTab === 'all', 'text-blue-100': currentTab !== 'all'}"
-              class="flex-1 py-3 text-center transition-all duration-200">
-        全部 ({{ stats.all }})
-      </button>
-      <button @click="currentTab = 'pending'"
-              :class="{'text-yellow-300 font-bold border-b-2 border-yellow-300': currentTab === 'pending', 'text-blue-100': currentTab !== 'pending'}"
-              class="flex-1 py-3 text-center transition-all duration-200 relative">
-        未盤點 ({{ stats.pending }})
-        <span v-if="stats.pending > 0" class="absolute top-2 right-4 w-2 h-2 rounded-full bg-red-400 animate-pulse"></span>
-      </button>
-      <button @click="currentTab = 'done'"
-              :class="{'text-yellow-300 font-bold border-b-2 border-yellow-300': currentTab === 'done', 'text-blue-100': currentTab !== 'done'}"
-              class="flex-1 py-3 text-center transition-all duration-200">
-        已完成 ({{ stats.done }})
-      </button>
+      <!-- 盤點人 -->
+      <div class="relative flex items-center flex-shrink-0">
+        <span class="material-icons absolute left-1.5 text-indigo-400 text-[16px]">account_circle</span>
+        <input type="text" v-model="operatorName" placeholder="盤點人"
+               class="pl-6 pr-2 py-1.5 rounded-full text-sm text-gray-800 bg-white/95 border-none focus:ring-2 focus:ring-yellow-300 outline-none w-24 shadow-inner transition-all focus:bg-white placeholder-gray-500 font-medium">
+      </div>
     </div>
 
     <!-- 總進度條 -->
@@ -187,12 +178,15 @@
             <span v-if="item.AT" class="text-indigo-400 font-bold mr-1">✏️</span>{{ item.AT || item.D }}
           </p>
         </div>
-        <div class="flex-shrink-0 ml-2">
+        <div class="flex-shrink-0 ml-2 flex flex-col items-end gap-1">
           <span v-if="item.AB === '已盤點'" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 shadow-sm">
             <span class="material-icons text-[14px] mr-1">check_circle</span>已盤點
           </span>
           <span v-else class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 shadow-sm border border-amber-200">
             <span class="material-icons text-[14px] mr-1">pending</span>未盤點
+          </span>
+          <span v-if="item.AV === '是'" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">
+            <span class="material-icons text-[12px] mr-0.5">delete</span>報廢申請
           </span>
         </div>
       </div>
@@ -214,6 +208,14 @@
             </div>
           </div>
         </div>
+        <!-- 購置日期 / 使用年限 / 已使用年數（唯讀，不可修改） -->
+        <div v-if="item.E || item.F || (item.X != null && item.X !== '')" class="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 px-1 pt-0.5">
+          <span v-if="item.E" class="flex items-center"><span class="material-icons text-[15px] mr-1 text-gray-400">event</span>購置 {{ item.E }}</span>
+          <span v-if="item.F" class="flex items-center"><span class="material-icons text-[15px] mr-1 text-gray-400">hourglass_bottom</span>年限 {{ item.F }} 年</span>
+          <span v-if="item.X != null && item.X !== ''" class="flex items-center" :class="overLife(item) ? 'text-red-500 font-bold' : ''">
+            <span class="material-icons text-[15px] mr-1" :class="overLife(item) ? 'text-red-400' : 'text-gray-400'">history</span>已用 {{ Math.round(item.X) }} 年
+          </span>
+        </div>
       </div>
 
       <!-- 已盤點：顯示盤點人與日期 -->
@@ -221,10 +223,12 @@
         <span class="flex items-center"><span class="material-icons text-[14px] mr-1">person</span>{{ item.AM }}</span>
         <span class="flex items-center"><span class="material-icons text-[14px] mr-1">schedule</span>{{ item.AE }}</span>
       </div>
-      <!-- 未盤點：一鍵直接盤點（不開編輯視窗） -->
-      <div v-else class="mt-4 pl-2 pt-3 border-t border-gray-100 flex items-center justify-between">
-        <span class="text-xs text-gray-400 flex items-center"><span class="material-icons text-[14px] mr-1">touch_app</span>點卡片可修改資料</span>
-        <button @click.stop="quickInventory(item)" class="flex items-center px-4 py-2 bg-emerald-500 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-100 active:scale-95 transition-transform duration-100">
+      <!-- 未盤點：一鍵直接盤點 / 報廢（皆不開編輯視窗） -->
+      <div v-else class="mt-4 pl-2 pt-3 border-t border-gray-100 flex items-center gap-2">
+        <button @click.stop="askScrap(item)" class="flex items-center px-3 py-2 bg-white border border-red-300 text-red-600 rounded-xl font-bold text-sm active:scale-95 transition-transform duration-100">
+          <span class="material-icons text-[18px] mr-1">delete_outline</span>報廢
+        </button>
+        <button @click.stop="quickInventory(item)" class="flex-1 flex items-center justify-center px-3 py-2 bg-emerald-500 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-100 active:scale-95 transition-transform duration-100">
           <span class="material-icons text-[18px] mr-1">check_circle</span>直接盤點
         </button>
       </div>
@@ -421,6 +425,37 @@
     </div>
   </div>
 
+  <!-- 報廢確認 Modal -->
+  <div v-if="scrapTarget" class="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300">
+    <div class="bg-white w-full max-w-sm rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+      <div class="bg-gradient-to-r from-red-50 to-white px-5 py-4 flex items-center border-b border-red-100">
+        <span class="material-icons text-red-500 mr-2">delete_forever</span>
+        <h2 class="text-lg font-extrabold text-gray-800">確認申請報廢</h2>
+      </div>
+      <div class="p-5">
+        <p class="text-sm text-gray-700 mb-3">確定要將下列財產<span class="text-red-600 font-bold">申請報廢</span>嗎？（同時會標記為已盤點）</p>
+        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200 text-sm space-y-2">
+          <div class="flex"><span class="w-20 text-gray-400 font-bold flex-shrink-0">名稱</span><span class="text-gray-800 font-bold">{{ scrapTarget.AQ || scrapTarget.C }}</span></div>
+          <div class="flex"><span class="w-20 text-gray-400 font-bold flex-shrink-0">編號</span><span class="font-mono text-gray-800">{{ scrapTarget.B }}</span></div>
+          <div class="flex"><span class="w-20 text-gray-400 font-bold flex-shrink-0">購置日期</span><span class="text-gray-800">{{ scrapTarget.E || '無資料' }}</span></div>
+          <div class="flex"><span class="w-20 text-gray-400 font-bold flex-shrink-0">使用年限</span><span class="text-gray-800">{{ scrapTarget.F ? scrapTarget.F + ' 年' : '無資料' }}</span></div>
+          <div class="flex"><span class="w-20 text-gray-400 font-bold flex-shrink-0">已使用</span>
+            <span :class="overLife(scrapTarget) ? 'text-red-600 font-bold' : 'text-gray-800'">
+              {{ (scrapTarget.X != null && scrapTarget.X !== '') ? Math.round(scrapTarget.X) + ' 年' : '無資料' }}
+              <span v-if="overLife(scrapTarget)" class="ml-1 text-[11px]">（已超過使用年限）</span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="p-4 bg-gray-50 border-t border-gray-100 flex space-x-3">
+        <button @click="scrapTarget = null" class="flex-1 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-xl font-bold text-sm shadow-sm hover:bg-gray-50 transition-colors">取消</button>
+        <button @click="confirmScrap" class="flex-1 py-2.5 bg-red-600 text-white rounded-xl font-bold text-sm shadow-md hover:bg-red-700 transition-colors flex justify-center items-center">
+          <span class="material-icons text-[16px] mr-1">delete_forever</span>確定報廢
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast 通知 (Snack bar) -->
   <div class="fixed top-14 left-0 w-full flex justify-center z-[100] pointer-events-none transition-all duration-300"
        :class="toast.show ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0'">
@@ -465,6 +500,7 @@
       let lastScanTime = 0;
 
       const selectedItem = ref(null);
+      const scrapTarget = ref(null);   // 報廢確認對象（null = 不顯示報廢視窗）
       const editForm = ref({
         modifiedName: '',
         modifiedLoc1: '',
@@ -800,6 +836,49 @@
         postInventory(updateData, oriItem, {});
       };
 
+      // --- 報廢 ---
+      // 已使用年數 >= 使用年限 → 視為超齡（紅色提示）
+      const overLife = (item) => {
+        const life = parseFloat(item && item.F);
+        const used = parseFloat(item && item.X);
+        return !isNaN(life) && !isNaN(used) && used >= life;
+      };
+
+      const askScrap = (item) => {
+        if (!operatorName.value.trim()) {
+          showToast('請先在右上角輸入您的「盤點人姓名」', 'error', 4000);
+          return;
+        }
+        scrapTarget.value = item;   // 開啟報廢確認視窗
+      };
+
+      const confirmScrap = () => {
+        const item = scrapTarget.value;
+        scrapTarget.value = null;
+        if (!item) return;
+        const itemIndex = inventoryList.value.findIndex(i => i.B === item.B);
+        if (itemIndex < 0) return;
+        const oriItem = inventoryList.value[itemIndex];
+
+        const updateData = {
+          rowIndex: item.rowIndex,
+          operatorName: operatorName.value.trim(),
+          modifiedCustodian: '', modifiedName: '', modifiedLoc1: '', modifiedLoc2: '', modifiedDesc: '',
+          isScrap: true, isReprintLabel: false
+        };
+
+        if (GAS_API_URL === "請在此填入部署後的_GAS_API_網址" || GAS_API_URL === "") {
+          updateLocalItemStatus(oriItem.B, { isScrap: true });
+          haptic(60);
+          showToast('已申請報廢（模擬）', 'success', 1800);
+          return;
+        }
+
+        haptic(60);
+        showToast('已申請報廢 ' + (oriItem.C || oriItem.B || ''), 'success', 1800);
+        postInventory(updateData, oriItem, { isScrap: true });
+      };
+
       // 完整盤點（編輯視窗送出）
       const submitInventory = async () => {
         const item = selectedItem.value;
@@ -951,6 +1030,7 @@
         showRemarkModal, remarkText, isSubmittingRemark, openRemarkModal, closeRemarkModal, submitRemark,
         showScanner, startScan, stopScan, handleScannedCode, loadData,
         selectedItem, editForm, openItemModal, closeItemModal, submitInventory, quickInventory,
+        scrapTarget, askScrap, confirmScrap, overLife,
         toast
       };
     }
