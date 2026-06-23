@@ -32,9 +32,24 @@
     .pb-safe-bottom { padding-bottom: var(--safe-bottom); }
     .property-card {
       transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
     }
     .property-card:active {
       transform: scale(0.97);
+    }
+    .inventory-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+      gap: 1rem;
+      align-items: stretch;
+    }
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
     }
     /* QR code scanner styles */
     #reader {
@@ -51,6 +66,9 @@
     }
     #reader__dashboard_section_csr { display: flex; flex-direction: column; align-items: center; }
     #reader__dashboard_section_swaplink { display: none; }
+    @media (min-width: 768px) {
+      #reader { min-height: 360px; }
+    }
   </style>
 </head>
 <body>
@@ -65,30 +83,31 @@
 
   <!-- 頂部導覽區（整個控制列固定在頂端） -->
   <header class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-lg sticky top-0 z-30 pt-safe-top">
-    <div class="px-3 py-2.5 flex items-center gap-2">
+    <div class="w-full max-w-[1600px] mx-auto px-3 md:px-5 py-2.5 md:py-3 flex items-center gap-2 md:gap-3">
       <h1 class="text-base font-extrabold tracking-wide flex items-center flex-shrink-0">
-        <span class="material-icons mr-1 text-[20px]">inventory_2</span>盤點系統
+        <span class="material-icons sm:mr-1 text-[22px]">inventory_2</span><span class="hidden sm:inline">盤點系統</span>
       </h1>
       <!-- 中間：狀態切換（取代原本的大頁籤，按一下即可切換全部／未盤點／已完成） -->
       <div class="relative flex-1 min-w-0">
         <select v-model="currentTab"
-                class="w-full appearance-none bg-white/95 text-gray-800 text-sm font-bold rounded-full pl-3 pr-7 py-1.5 outline-none focus:ring-2 focus:ring-yellow-300 shadow-inner truncate">
+                class="w-full min-h-[44px] appearance-none bg-white/95 text-gray-800 text-sm font-bold rounded-full pl-3 pr-8 py-2 outline-none focus:ring-2 focus:ring-yellow-300 shadow-inner truncate">
           <option value="all">全部 ({{ stats.all }})</option>
           <option value="pending">未盤點 ({{ stats.pending }})</option>
           <option value="done">已完成 ({{ stats.done }})</option>
         </select>
-        <span class="material-icons absolute right-1.5 top-1.5 text-gray-500 text-[18px] pointer-events-none">unfold_more</span>
+        <span class="material-icons absolute right-2 top-3 text-gray-500 text-[18px] pointer-events-none">unfold_more</span>
       </div>
       <!-- 盤點人 -->
       <div class="relative flex items-center flex-shrink-0">
         <span class="material-icons absolute left-1.5 text-indigo-400 text-[16px]">account_circle</span>
         <input type="text" v-model="operatorName" placeholder="盤點人"
-               class="pl-6 pr-2 py-1.5 rounded-full text-sm text-gray-800 bg-white/95 border-none focus:ring-2 focus:ring-yellow-300 outline-none w-24 shadow-inner transition-all focus:bg-white placeholder-gray-500 font-medium">
+               class="pl-7 pr-3 py-2 min-h-[44px] rounded-full text-sm text-gray-800 bg-white/95 border-none focus:ring-2 focus:ring-yellow-300 outline-none w-24 md:w-36 shadow-inner transition-all focus:bg-white placeholder-gray-500 font-medium">
       </div>
     </div>
 
     <!-- 總進度條 -->
-    <div class="px-4 py-2 bg-black/10">
+    <div class="px-4 md:px-5 py-2 bg-black/10">
+      <div class="w-full max-w-[1600px] mx-auto">
       <div class="flex justify-between items-center text-[11px] text-blue-100 mb-1">
         <span class="font-medium">盤點進度 {{ stats.done }} / {{ stats.all }}</span>
         <span class="font-bold text-yellow-300">{{ progressPct }}%</span>
@@ -96,50 +115,60 @@
       <div class="w-full h-1.5 bg-black/25 rounded-full overflow-hidden">
         <div class="h-full bg-gradient-to-r from-emerald-400 to-green-400 transition-all duration-500 rounded-full" :style="{ width: progressPct + '%' }"></div>
       </div>
+      </div>
     </div>
 
     <!-- 搜尋與操作區 -->
-    <div class="bg-gray-50 px-4 py-3 shadow-sm flex space-x-2 border-b border-gray-200">
+    <div class="bg-gray-50 px-3 md:px-5 py-3 shadow-sm border-b border-gray-200">
+      <div class="w-full max-w-[1600px] mx-auto flex gap-2 md:gap-3">
       <div class="relative flex-1">
         <span class="material-icons absolute left-3 top-2.5 text-gray-400">search</span>
         <input type="text" v-model="searchQuery" placeholder="搜尋編號、名稱、地點..."
-               class="w-full pl-10 pr-8 py-2 bg-white rounded-xl text-sm border border-gray-200 text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm">
+               class="w-full min-h-[44px] pl-10 pr-8 py-2 bg-white rounded-xl text-sm border border-gray-200 text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm">
         <span v-show="searchQuery" @click="searchQuery=''" class="material-icons absolute right-3 top-2.5 text-gray-400 cursor-pointer hover:text-gray-600">cancel</span>
       </div>
       <!-- 篩選切換 -->
       <button @click="showFilters = !showFilters"
-              :class="(locationFilter || custodianFilter) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-200'"
-              class="px-3 py-2 rounded-xl shadow-sm border flex items-center active:scale-95 transition-transform duration-100 relative">
+              :class="(locationFilter || custodianFilter || operatorFilter) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-200'"
+              class="min-h-[44px] px-3 md:px-4 py-2 rounded-xl shadow-sm border flex items-center justify-center active:scale-95 transition-transform duration-100 relative">
         <span class="material-icons text-[20px]">filter_list</span>
-        <span v-if="locationFilter || custodianFilter" class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-400 rounded-full border border-white"></span>
+        <span class="hidden lg:inline ml-1 text-sm font-bold">篩選</span>
+        <span v-if="locationFilter || custodianFilter || operatorFilter" class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-400 rounded-full border border-white"></span>
       </button>
       <!-- 重新整理 -->
-      <button @click="loadData" :disabled="isRefreshing" class="bg-white text-indigo-600 border border-indigo-200 px-3 py-2 rounded-xl shadow-sm flex items-center active:scale-95 transition-transform duration-100 disabled:opacity-50">
+      <button @click="loadData" :disabled="isRefreshing" class="min-h-[44px] bg-white text-indigo-600 border border-indigo-200 px-3 md:px-4 py-2 rounded-xl shadow-sm flex items-center justify-center active:scale-95 transition-transform duration-100 disabled:opacity-50">
         <span class="material-icons text-[20px]" :class="{'animate-spin': isRefreshing}">refresh</span>
+        <span class="hidden lg:inline ml-1 text-sm font-bold">更新</span>
       </button>
       <!-- 掃描 -->
-      <button @click="startScan" class="bg-gradient-to-b from-indigo-500 to-indigo-700 text-white px-4 py-2 rounded-xl shadow-md flex items-center active:scale-95 transition-transform duration-100">
+      <button @click="startScan" class="min-h-[44px] bg-gradient-to-b from-indigo-500 to-indigo-700 text-white px-4 md:px-5 py-2 rounded-xl shadow-md flex items-center justify-center active:scale-95 transition-transform duration-100">
         <span class="material-icons text-[20px]">qr_code_scanner</span>
+        <span class="hidden md:inline ml-1.5 text-sm font-bold">掃描</span>
       </button>
+      </div>
     </div>
 
     <!-- 可收合的篩選列 -->
-    <div v-show="showFilters" class="bg-gray-50 px-4 pb-3 border-b border-gray-200 space-y-2">
-      <div class="flex space-x-2">
-        <select v-model="locationFilter" class="flex-1 min-w-0 bg-white border border-gray-300 rounded-xl text-sm py-2 px-2 text-gray-700 outline-none focus:border-indigo-500">
+    <div v-show="showFilters" class="bg-gray-50 px-3 md:px-5 pb-3 border-b border-gray-200">
+      <div class="w-full max-w-[1600px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        <select v-model="locationFilter" class="w-full min-h-[44px] bg-white border border-gray-300 rounded-xl text-sm py-2 px-3 text-gray-700 outline-none focus:border-indigo-500">
           <option value="">全部地點</option>
           <option v-for="loc in uniqueLocations" :key="loc" :value="loc">{{ loc }}</option>
         </select>
-        <select v-model="custodianFilter" class="flex-1 min-w-0 bg-white border border-gray-300 rounded-xl text-sm py-2 px-2 text-gray-700 outline-none focus:border-indigo-500">
+        <select v-model="custodianFilter" class="w-full min-h-[44px] bg-white border border-gray-300 rounded-xl text-sm py-2 px-3 text-gray-700 outline-none focus:border-indigo-500">
           <option value="">全部保管人</option>
           <option v-for="c in uniqueCustodians" :key="c" :value="c">{{ c }}</option>
         </select>
-        <button v-if="locationFilter || custodianFilter" @click="locationFilter=''; custodianFilter=''" class="px-3 py-2 bg-gray-200 text-gray-600 rounded-xl text-sm font-bold active:scale-95 transition">清除</button>
+        <select v-if="currentTab === 'done'" v-model="operatorFilter" class="w-full min-h-[44px] bg-white border border-gray-300 rounded-xl text-sm py-2 px-3 text-gray-700 outline-none focus:border-indigo-500">
+          <option value="">全部盤點人</option>
+          <option v-for="operator in uniqueOperators" :key="operator" :value="operator">{{ operator }}</option>
+        </select>
+        <button v-if="locationFilter || custodianFilter || operatorFilter" @click="clearFilters" class="min-h-[44px] px-4 py-2 bg-gray-200 text-gray-600 rounded-xl text-sm font-bold active:scale-95 transition">清除篩選</button>
       </div>
     </div>
 
     <!-- 上次更新時間 -->
-    <div class="bg-gray-50 px-4 pb-2 -mt-px flex justify-end" v-if="lastUpdated">
+    <div class="bg-gray-50 px-4 md:px-5 pb-2 -mt-px flex justify-end" v-if="lastUpdated">
       <span class="text-[11px] text-gray-400 flex items-center">
         <span class="material-icons text-[12px] mr-0.5">update</span>上次更新 {{ lastUpdated }}
       </span>
@@ -160,7 +189,8 @@
   </div>
 
   <!-- 列表區 -->
-  <main v-if="!isLoading" class="flex-1 p-4 space-y-4 pb-24">
+  <main v-if="!isLoading" class="flex-1 w-full max-w-[1600px] mx-auto p-3 sm:p-4 md:p-5 pb-24">
+    <div class="inventory-grid">
     <div v-for="item in visibleList" :key="item.B"
          class="property-card bg-white rounded-2xl shadow-sm border border-gray-100 p-4 relative overflow-hidden"
          @click="openItemModal(item)">
@@ -170,11 +200,11 @@
 
       <div class="flex justify-between items-start mb-3 pl-2">
         <div class="flex-1 pr-2">
-          <h3 class="font-bold text-gray-900 text-lg leading-tight">
+          <h3 class="font-bold text-gray-900 text-lg leading-tight line-clamp-2">
             {{ item.AQ || item.C }}
             <span v-if="item.AQ" class="text-xs text-indigo-500 font-normal ml-1 px-1 bg-indigo-50 rounded">已修改</span>
           </h3>
-          <p v-if="item.AT || item.D" class="text-xs text-gray-500 mt-1 leading-relaxed">
+          <p v-if="item.AT || item.D" class="text-xs text-gray-500 mt-1 leading-relaxed line-clamp-2">
             <span v-if="item.AT" class="text-indigo-400 font-bold mr-1">✏️</span>{{ item.AT || item.D }}
           </p>
         </div>
@@ -191,7 +221,7 @@
         </div>
       </div>
 
-      <div class="pl-2 space-y-2">
+      <div class="pl-2 space-y-2 flex-1">
         <div class="flex items-center text-sm text-gray-700 bg-gray-50 p-2 rounded-lg">
           <span class="material-icons text-[18px] mr-2 text-indigo-400">qr_code_2</span>
           <span class="font-mono font-bold tracking-wider">{{ item.B }}</span>
@@ -225,13 +255,14 @@
       </div>
       <!-- 未盤點：一鍵直接盤點 / 報廢（皆不開編輯視窗） -->
       <div v-else class="mt-4 pl-2 pt-3 border-t border-gray-100 flex items-center gap-2">
-        <button @click.stop="askScrap(item)" class="flex items-center px-3 py-2 bg-white border border-red-300 text-red-600 rounded-xl font-bold text-sm active:scale-95 transition-transform duration-100">
+        <button @click.stop="askScrap(item)" class="min-h-[44px] flex items-center px-3 py-2 bg-white border border-red-300 text-red-600 rounded-xl font-bold text-sm active:scale-95 transition-transform duration-100">
           <span class="material-icons text-[18px] mr-1">delete_outline</span>報廢
         </button>
-        <button @click.stop="quickInventory(item)" class="flex-1 flex items-center justify-center px-3 py-2 bg-emerald-500 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-100 active:scale-95 transition-transform duration-100">
+        <button @click.stop="quickInventory(item)" class="min-h-[44px] flex-1 flex items-center justify-center px-3 py-2 bg-emerald-500 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-100 active:scale-95 transition-transform duration-100">
           <span class="material-icons text-[18px] mr-1">check_circle</span>直接盤點
         </button>
       </div>
+    </div>
     </div>
 
     <!-- 分批渲染：載入更多提示 -->
@@ -261,14 +292,14 @@
       <h2 class="text-lg font-bold flex items-center">
         <span class="material-icons mr-2 text-indigo-400">center_focus_strong</span>掃描 QR Code
       </h2>
-      <button @click="stopScan" class="p-2 bg-white/10 rounded-full active:bg-white/20 transition">
+      <button @click="stopScan" class="min-w-[44px] min-h-[44px] flex items-center justify-center bg-white/10 rounded-full active:bg-white/20 transition">
         <span class="material-icons text-white">close</span>
       </button>
     </div>
 
     <!-- 連續掃描切換 + 計數 -->
     <div class="px-4 py-3 flex items-center justify-between text-white">
-      <label class="flex items-center space-x-2 cursor-pointer bg-white/10 px-3 py-2 rounded-full active:bg-white/20 transition">
+      <label class="min-h-[44px] flex items-center space-x-2 cursor-pointer bg-white/10 px-3 py-2 rounded-full active:bg-white/20 transition">
         <input type="checkbox" v-model="continuousScan" class="w-4 h-4 accent-emerald-400">
         <span class="text-sm font-bold">連續掃描</span>
         <span class="material-icons text-[16px] text-indigo-300">all_inclusive</span>
@@ -279,7 +310,7 @@
     </div>
 
     <div class="flex-1 flex flex-col justify-center items-center px-6 pb-20">
-      <div class="w-full max-w-sm relative">
+      <div class="w-full max-w-sm md:max-w-lg lg:max-w-xl relative">
         <!-- 掃描框動畫裝飾 -->
         <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur opacity-30 animate-pulse"></div>
         <div id="reader" class="bg-black/50 relative shadow-2xl"></div>
@@ -293,7 +324,7 @@
 
   <!-- 盤點操作 Modal -->
   <div v-if="selectedItem" class="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm transition-opacity duration-300">
-    <div class="bg-white w-full sm:w-full max-w-md rounded-t-3xl sm:rounded-2xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+    <div class="bg-white w-full sm:w-full max-w-3xl rounded-t-3xl sm:rounded-2xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
       <!-- Modal Header -->
       <div class="bg-gradient-to-r from-gray-50 to-white px-5 py-4 flex justify-between items-center border-b border-gray-100">
         <div class="flex items-center space-x-3">
@@ -342,7 +373,7 @@
         </div>
 
         <!-- 編輯表單 -->
-        <div class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm text-gray-700 mb-1.5 font-bold pl-1">修正保管人</label>
             <input type="text" v-model="editForm.modifiedCustodian"
@@ -355,7 +386,7 @@
                    class="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm placeholder-gray-300"
                    placeholder="若無修改請維持原狀">
           </div>
-          <div>
+          <div class="md:col-span-2">
             <label class="block text-sm text-gray-700 mb-1.5 font-bold pl-1">修正特徵及說明</label>
             <textarea v-model="editForm.modifiedDesc" rows="2"
                    class="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm placeholder-gray-300"
@@ -371,7 +402,7 @@
             <input type="text" v-model="editForm.modifiedLoc2"
                    class="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all shadow-sm placeholder-gray-300">
           </div>
-          <div class="flex space-x-4 mt-4 bg-gray-50 p-3 rounded-xl border border-gray-200">
+          <div class="md:col-span-2 flex space-x-4 bg-gray-50 p-3 rounded-xl border border-gray-200">
             <label class="flex items-center space-x-2 cursor-pointer flex-1 justify-center">
               <input type="checkbox" v-model="editForm.isScrap" class="w-5 h-5 text-red-600 rounded border-gray-300 focus:ring-red-500">
               <span class="text-sm font-bold text-gray-700">申請報廢</span>
@@ -491,6 +522,7 @@
       const showFilters = ref(false);
       const locationFilter = ref('');
       const custodianFilter = ref('');
+      const operatorFilter = ref('');
       const renderLimit = ref(40);          // 一次先渲染幾筆，捲到底再加
 
       // 連續掃描
@@ -535,7 +567,10 @@
         localStorage.setItem('gas_continuous_scan', v ? '1' : '0');
       });
       // 切換頁籤 / 搜尋 / 篩選時，重置分批渲染並回到頂端
-      watch([currentTab, searchQuery, locationFilter, custodianFilter], () => {
+      watch(currentTab, (newTab) => {
+        if (newTab !== 'done') operatorFilter.value = '';
+      });
+      watch([currentTab, searchQuery, locationFilter, custodianFilter, operatorFilter], () => {
         renderLimit.value = 40;
         window.scrollTo({ top: 0 });
       });
@@ -642,6 +677,21 @@
         inventoryList.value.forEach(i => { const c = i.AU || i.K; if (c) s.add(c.toString()); });
         return Array.from(s).sort();
       });
+      const uniqueOperators = computed(() => {
+        const s = new Set();
+        inventoryList.value.forEach(i => {
+          if (i.AB !== '已盤點') return;
+          const operator = (i.AM || '').toString().trim();
+          if (operator) s.add(operator);
+        });
+        return Array.from(s).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+      });
+
+      const clearFilters = () => {
+        locationFilter.value = '';
+        custodianFilter.value = '';
+        operatorFilter.value = '';
+      };
 
       const filteredList = computed(() => {
         let list = inventoryList.value;
@@ -658,6 +708,9 @@
         if (custodianFilter.value) {
           list = list.filter(i => (i.AU || i.K || '').toString() === custodianFilter.value);
         }
+        if (currentTab.value === 'done' && operatorFilter.value) {
+          list = list.filter(i => (i.AM || '').toString().trim() === operatorFilter.value);
+        }
 
         if (searchQuery.value.trim()) {
           const q = searchQuery.value.toLowerCase().trim();
@@ -668,7 +721,8 @@
             const loc1 = (i.AR || i.M) ? (i.AR || i.M).toString().toLowerCase() : '';
             const loc2 = (i.AS || i.N) ? (i.AS || i.N).toString().toLowerCase() : '';
             const cust = (i.AU || i.K) ? (i.AU || i.K).toString().toLowerCase() : '';
-            return b.includes(q) || name.includes(q) || desc.includes(q) || loc1.includes(q) || loc2.includes(q) || cust.includes(q);
+            const operator = i.AM ? i.AM.toString().toLowerCase() : '';
+            return b.includes(q) || name.includes(q) || desc.includes(q) || loc1.includes(q) || loc2.includes(q) || cust.includes(q) || operator.includes(q);
           });
         }
         return list;
@@ -1024,7 +1078,8 @@
       return {
         inventoryList, isLoading, isRefreshing, isSubmitting, errorMessage,
         operatorName, currentTab, searchQuery, stats, progressPct, filteredList, visibleList,
-        showFilters, locationFilter, custodianFilter, uniqueLocations, uniqueCustodians,
+        showFilters, locationFilter, custodianFilter, operatorFilter,
+        uniqueLocations, uniqueCustodians, uniqueOperators, clearFilters,
         lastUpdated,
         continuousScan, scanCount,
         showRemarkModal, remarkText, isSubmittingRemark, openRemarkModal, closeRemarkModal, submitRemark,
