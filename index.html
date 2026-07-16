@@ -1165,6 +1165,30 @@
         }
       };
 
+      const getCameraErrorMessage = error => {
+        if (error instanceof Error) return `${error.name}: ${error.message}`;
+        if (typeof error === 'string') return error;
+        try { return JSON.stringify(error); } catch (_) { return String(error); }
+      };
+
+      const isCameraPermissionError = error =>
+        /NotAllowedError|PermissionDeniedError|permission denied|permission dismissed|denied permission/i
+          .test(getCameraErrorMessage(error));
+
+      const getCameraToastMessage = error => {
+        const message = getCameraErrorMessage(error);
+        if (isCameraPermissionError(error)) {
+          return '相機權限遭拒，請在瀏覽器的網站設定中允許使用相機';
+        }
+        if (/NotReadableError|TrackStartError|could not start video source|device in use/i.test(message)) {
+          return '相機目前可能被其他 App 使用，請關閉其他相機程式後重試';
+        }
+        if (/NotFoundError|DevicesNotFoundError|no camera|Requested device not found/i.test(message)) {
+          return '找不到可用的相機，請確認裝置鏡頭可正常使用';
+        }
+        return '無法啟動相機，已嘗試相容模式，請重新整理頁面後再試';
+      };
+
       const startScan = async () => {
         if (continuousScan.value && !operatorName.value.trim()) {
           showToast('連續掃描前請先輸入盤點人姓名', 'error', 4000);
@@ -1187,31 +1211,48 @@
           if (html5QrCode === null) {
             html5QrCode = new Html5Qrcode("reader");
           }
-          const config = {
-            fps: 10,
-            qrbox: (viewfinderWidth, viewfinderHeight) => {
-              const shortEdge = Math.min(viewfinderWidth, viewfinderHeight);
-              const size = Math.max(100, Math.min(420, Math.floor(shortEdge * 0.7)));
-              return { width: size, height: size };
+          const qrbox = (viewfinderWidth, viewfinderHeight) => {
+            const shortEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const size = Math.max(100, Math.min(420, Math.floor(shortEdge * 0.7)));
+            return { width: size, height: size };
+          };
+          const scanSuccess = (decodedText) => {
+            if (continuousScan.value) {
+              handleContinuousScan(decodedText);
+            } else {
+              stopScan();
+              handleScannedCode(decodedText);
             }
           };
-          await html5QrCode.start(
-            {
-              facingMode: { ideal: "environment" },
-              width: { ideal: 1920 },
-              height: { ideal: 1080 }
-            },
-            config,
-            (decodedText) => {
-              if (continuousScan.value) {
-                handleContinuousScan(decodedText);
-              } else {
-                stopScan();
-                handleScannedCode(decodedText);
-              }
-            },
-            () => { /* 對焦失敗，靜默略過 */ }
-          );
+          const baseConfig = {
+            fps: 10,
+            qrbox
+          };
+          try {
+            await html5QrCode.start(
+              { facingMode: "environment" },
+              {
+                ...baseConfig,
+                videoConstraints: {
+                  facingMode: { ideal: "environment" },
+                  width: { ideal: 1920 },
+                  height: { ideal: 1080 }
+                }
+              },
+              scanSuccess,
+              () => { /* 對焦失敗，靜默略過 */ }
+            );
+          } catch (highResolutionError) {
+            if (sessionId !== scannerSession) return;
+            if (isCameraPermissionError(highResolutionError)) throw highResolutionError;
+            console.warn('高解析度相機啟動失敗，改用相容模式', highResolutionError);
+            await html5QrCode.start(
+              { facingMode: "environment" },
+              baseConfig,
+              scanSuccess,
+              () => { /* 對焦失敗，靜默略過 */ }
+            );
+          }
           if (sessionId !== scannerSession) {
             if (html5QrCode.isScanning) await html5QrCode.stop();
             return;
@@ -1222,7 +1263,7 @@
           if (sessionId !== scannerSession) return;
           console.error("相機啟動失敗", err);
           await stopScan();
-          showToast('無法啟動相機，請確認已給予相機權限', 'error', 5000);
+          showToast(getCameraToastMessage(err), 'error', 6000);
         }
       };
 
