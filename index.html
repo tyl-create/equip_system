@@ -13,7 +13,7 @@
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 
   <!-- html5-qrcode -->
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" type="text/javascript"></script>
 
   <!-- Material Icons -->
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -129,11 +129,11 @@
       </div>
       <!-- 篩選切換 -->
       <button @click="showFilters = !showFilters"
-              :class="(locationFilter || custodianFilter || operatorFilter) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-200'"
+              :class="(selectedLocations.length || custodianFilter || operatorFilter) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-600 border-indigo-200'"
               class="min-h-[44px] px-3 md:px-4 py-2 rounded-xl shadow-sm border flex items-center justify-center active:scale-95 transition-transform duration-100 relative">
         <span class="material-icons text-[20px]">filter_list</span>
         <span class="hidden lg:inline ml-1 text-sm font-bold">篩選</span>
-        <span v-if="locationFilter || custodianFilter || operatorFilter" class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-400 rounded-full border border-white"></span>
+        <span v-if="selectedLocations.length || custodianFilter || operatorFilter" class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-400 rounded-full border border-white"></span>
       </button>
       <!-- 重新整理 -->
       <button @click="loadData" :disabled="isRefreshing" class="min-h-[44px] bg-white text-indigo-600 border border-indigo-200 px-3 md:px-4 py-2 rounded-xl shadow-sm flex items-center justify-center active:scale-95 transition-transform duration-100 disabled:opacity-50">
@@ -145,16 +145,23 @@
         <span class="material-icons text-[20px]">qr_code_scanner</span>
         <span class="hidden md:inline ml-1.5 text-sm font-bold">掃描</span>
       </button>
+      <!-- 批次盤點 -->
+      <button @click="toggleSelectionMode"
+              :class="selectionMode ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-emerald-700 border-emerald-200'"
+              class="min-w-[44px] min-h-[44px] px-2 md:px-4 py-2 rounded-xl shadow-sm border flex items-center justify-center active:scale-95 transition-transform duration-100">
+        <span class="material-icons text-[20px]">checklist</span>
+        <span class="hidden lg:inline ml-1 text-sm font-bold">批次盤點</span>
+      </button>
       </div>
     </div>
 
     <!-- 可收合的篩選列 -->
     <div v-show="showFilters" class="bg-gray-50 px-3 md:px-5 pb-3 border-b border-gray-200">
       <div class="w-full max-w-[1600px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-        <select v-model="locationFilter" class="w-full min-h-[44px] bg-white border border-gray-300 rounded-xl text-sm py-2 px-3 text-gray-700 outline-none focus:border-indigo-500">
-          <option value="">全部地點</option>
-          <option v-for="loc in uniqueLocations" :key="loc" :value="loc">{{ loc }}</option>
-        </select>
+        <button @click="openLocationPicker" class="w-full min-h-[44px] bg-white border border-gray-300 rounded-xl text-sm py-2 px-3 text-gray-700 outline-none focus:border-indigo-500 flex items-center justify-between">
+          <span class="truncate">{{ locationFilterLabel }}</span>
+          <span class="material-icons text-[18px] text-gray-400">expand_more</span>
+        </button>
         <select v-model="custodianFilter" class="w-full min-h-[44px] bg-white border border-gray-300 rounded-xl text-sm py-2 px-3 text-gray-700 outline-none focus:border-indigo-500">
           <option value="">全部保管人</option>
           <option v-for="c in uniqueCustodians" :key="c" :value="c">{{ c }}</option>
@@ -163,7 +170,7 @@
           <option value="">全部盤點人</option>
           <option v-for="operator in uniqueOperators" :key="operator" :value="operator">{{ operator }}</option>
         </select>
-        <button v-if="locationFilter || custodianFilter || operatorFilter" @click="clearFilters" class="min-h-[44px] px-4 py-2 bg-gray-200 text-gray-600 rounded-xl text-sm font-bold active:scale-95 transition">清除篩選</button>
+        <button v-if="selectedLocations.length || custodianFilter || operatorFilter" @click="clearFilters" class="min-h-[44px] px-4 py-2 bg-gray-200 text-gray-600 rounded-xl text-sm font-bold active:scale-95 transition">清除篩選</button>
       </div>
     </div>
 
@@ -189,16 +196,23 @@
   </div>
 
   <!-- 列表區 -->
-  <main v-if="!isLoading" class="flex-1 w-full max-w-[1600px] mx-auto p-3 sm:p-4 md:p-5 pb-24">
+  <main v-if="!isLoading" class="flex-1 w-full max-w-[1600px] mx-auto p-3 sm:p-4 md:p-5 pb-24" :class="selectionMode ? 'pb-44' : ''">
     <div class="inventory-grid">
     <div v-for="item in visibleList" :key="item.B"
          class="property-card bg-white rounded-2xl shadow-sm border border-gray-100 p-4 relative overflow-hidden"
-         @click="openItemModal(item)">
+         :class="selectionMode && isItemSelected(item.B) ? 'ring-2 ring-emerald-500 bg-emerald-50/40' : ''"
+         @click="handleCardClick(item)">
 
       <!-- 左側狀態條 -->
       <div class="absolute left-0 top-0 bottom-0 w-2" :class="item.AB === '已盤點' ? 'bg-emerald-500' : 'bg-amber-400'"></div>
 
       <div class="flex justify-between items-start mb-3 pl-2">
+        <div v-if="selectionMode && item.AB !== '已盤點'" class="flex-shrink-0 mr-3 pt-0.5">
+          <span class="w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-colors"
+                :class="isItemSelected(item.B) ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-gray-300 text-transparent'">
+            <span class="material-icons text-[20px]">check</span>
+          </span>
+        </div>
         <div class="flex-1 pr-2">
           <h3 class="font-bold text-gray-900 text-lg leading-tight line-clamp-2">
             {{ item.AQ || item.C }}
@@ -254,13 +268,16 @@
         <span class="flex items-center"><span class="material-icons text-[14px] mr-1">schedule</span>{{ item.AE }}</span>
       </div>
       <!-- 未盤點：一鍵直接盤點 / 報廢（皆不開編輯視窗） -->
-      <div v-else class="mt-4 pl-2 pt-3 border-t border-gray-100 flex items-center gap-2">
+      <div v-else-if="!selectionMode" class="mt-4 pl-2 pt-3 border-t border-gray-100 flex items-center gap-2">
         <button @click.stop="askScrap(item)" class="min-h-[44px] flex items-center px-3 py-2 bg-white border border-red-300 text-red-600 rounded-xl font-bold text-sm active:scale-95 transition-transform duration-100">
           <span class="material-icons text-[18px] mr-1">delete_outline</span>報廢
         </button>
         <button @click.stop="quickInventory(item)" class="min-h-[44px] flex-1 flex items-center justify-center px-3 py-2 bg-emerald-500 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-100 active:scale-95 transition-transform duration-100">
           <span class="material-icons text-[18px] mr-1">check_circle</span>直接盤點
         </button>
+      </div>
+      <div v-else class="mt-4 pl-2 pt-3 border-t border-gray-100 text-xs font-bold text-emerald-700 flex items-center">
+        <span class="material-icons text-[16px] mr-1">touch_app</span>點選卡片加入批次盤點
       </div>
     </div>
     </div>
@@ -286,6 +303,101 @@
     </div>
   </main>
 
+  <!-- 批次盤點底部操作列 -->
+  <div v-if="selectionMode" class="fixed left-0 right-0 bottom-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 shadow-[0_-6px_20px_rgba(0,0,0,0.12)] pb-safe-bottom">
+    <div class="w-full max-w-[1600px] mx-auto px-3 md:px-5 py-3 flex flex-wrap items-center gap-2 md:gap-3">
+      <div class="mr-auto min-w-[90px]">
+        <div class="text-sm font-extrabold text-gray-800">已選 {{ selectedItemIds.length }} 件</div>
+        <div class="text-[11px] text-gray-400">僅盤點未完成項目</div>
+      </div>
+      <button @click="toggleSelectFiltered" class="min-h-[44px] px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-sm font-bold flex items-center">
+        <span class="material-icons text-[18px] mr-1">select_all</span>{{ allFilteredSelected ? '取消全選' : '全選篩選結果' }}
+      </button>
+      <button v-if="selectedItemIds.length" @click="clearItemSelection" class="min-h-[44px] px-3 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold">清除</button>
+      <button @click="exitSelectionMode" class="min-h-[44px] px-3 py-2 bg-white text-gray-600 border border-gray-300 rounded-xl text-sm font-bold">取消</button>
+      <button @click="openBatchConfirm" :disabled="selectedItemIds.length === 0 || isBatchSubmitting"
+              class="min-h-[44px] px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-extrabold shadow-md disabled:opacity-40 flex items-center">
+        <span class="material-icons text-[18px] mr-1">done_all</span>一鍵完成盤點
+      </button>
+    </div>
+  </div>
+
+  <!-- 地點複選面板 -->
+  <div v-if="showLocationPicker" class="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm" @click.self="closeLocationPicker">
+    <div class="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-extrabold text-gray-800">選擇地點</h2>
+          <p class="text-xs text-gray-400 mt-0.5">已選 {{ draftSelectedLocations.length }} 個地點</p>
+        </div>
+        <button @click="closeLocationPicker" class="min-w-[44px] min-h-[44px] rounded-full bg-gray-100 text-gray-500 flex items-center justify-center">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+      <div class="px-4 py-3 border-b border-gray-100 space-y-2">
+        <div class="relative">
+          <span class="material-icons absolute left-3 top-2.5 text-gray-400">search</span>
+          <input v-model="locationSearchQuery" type="search" placeholder="搜尋地點..."
+                 class="w-full min-h-[44px] pl-10 pr-3 py-2 border border-gray-300 rounded-xl text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+        </div>
+        <div class="flex gap-2">
+          <button @click="toggleAllVisibleLocations" class="min-h-[44px] flex-1 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-bold">
+            {{ allVisibleLocationsSelected ? '取消目前搜尋結果' : '全選目前搜尋結果' }}
+          </button>
+          <button @click="draftSelectedLocations=[]" :disabled="draftSelectedLocations.length === 0" class="min-h-[44px] px-4 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold disabled:opacity-40">全部清除</button>
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto p-3 space-y-1">
+        <button v-for="loc in filteredLocationOptions" :key="loc" @click="toggleDraftLocation(loc)"
+                class="w-full min-h-[48px] px-3 py-2 rounded-xl flex items-center text-left transition-colors"
+                :class="draftSelectedLocations.includes(loc) ? 'bg-indigo-50 text-indigo-800' : 'hover:bg-gray-50 text-gray-700'">
+          <span class="w-6 h-6 mr-3 rounded-md border-2 flex-shrink-0 flex items-center justify-center"
+                :class="draftSelectedLocations.includes(loc) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-gray-300 text-transparent'">
+            <span class="material-icons text-[18px]">check</span>
+          </span>
+          <span class="text-sm font-medium break-all">{{ loc }}</span>
+        </button>
+        <div v-if="filteredLocationOptions.length === 0" class="py-12 text-center text-sm text-gray-400">找不到符合的地點</div>
+      </div>
+      <div class="p-4 border-t border-gray-100 bg-white flex gap-3 pb-safe-bottom">
+        <button @click="closeLocationPicker" class="min-h-[48px] flex-1 bg-white border border-gray-300 text-gray-600 rounded-xl font-bold">取消</button>
+        <button @click="applyLocationSelection" class="min-h-[48px] flex-1 bg-indigo-600 text-white rounded-xl font-bold shadow-md">套用篩選</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 批次盤點確認 -->
+  <div v-if="showBatchConfirm" class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm" @click.self="closeBatchConfirm">
+    <div class="bg-white w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl">
+      <div class="px-5 py-4 bg-emerald-50 border-b border-emerald-100 flex items-center">
+        <span class="material-icons text-emerald-600 mr-2">done_all</span>
+        <h2 class="text-lg font-extrabold text-gray-800">確認批次盤點</h2>
+      </div>
+      <div class="p-5">
+        <div class="grid grid-cols-[80px_1fr] gap-y-2 text-sm mb-4">
+          <span class="text-gray-400 font-bold">盤點人</span><span class="font-bold text-gray-800">{{ operatorName.trim() }}</span>
+          <span class="text-gray-400 font-bold">選取件數</span><span class="font-bold text-emerald-700">{{ selectedItemIds.length }} 件</span>
+          <span class="text-gray-400 font-bold">涉及地點</span><span class="text-gray-700">{{ selectedLocationSummary }}</span>
+        </div>
+        <div class="bg-gray-50 rounded-xl border border-gray-200 p-3 max-h-48 overflow-y-auto">
+          <div v-for="item in selectedItemsPreview" :key="item.B" class="py-2 border-b border-gray-200 last:border-0 text-sm">
+            <div class="font-bold text-gray-800">{{ item.AQ || item.C || item.B }}</div>
+            <div class="text-xs text-gray-500 mt-0.5">{{ item.B }} · {{ item.AR || item.M || '未設定地點' }}</div>
+          </div>
+          <div v-if="selectedItemIds.length > selectedItemsPreview.length" class="pt-2 text-center text-xs text-gray-400">另有 {{ selectedItemIds.length - selectedItemsPreview.length }} 件</div>
+        </div>
+        <p class="text-xs text-amber-600 mt-3">批次盤點不會修改財產名稱、地點、報廢、補印或備註資料。</p>
+      </div>
+      <div class="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+        <button @click="closeBatchConfirm" :disabled="isBatchSubmitting" class="min-h-[48px] flex-1 bg-white border border-gray-300 text-gray-600 rounded-xl font-bold disabled:opacity-50">取消</button>
+        <button @click="submitBatchInventory" :disabled="isBatchSubmitting" class="min-h-[48px] flex-1 bg-emerald-600 text-white rounded-xl font-bold shadow-md disabled:opacity-60 flex items-center justify-center">
+          <span v-if="isBatchSubmitting" class="material-icons animate-spin mr-2">refresh</span>
+          {{ isBatchSubmitting ? `處理中 ${batchProgress}%` : `確認盤點 ${selectedItemIds.length} 件` }}
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- 掃描 Modal -->
   <div v-show="showScanner" class="fixed inset-0 z-50 bg-black/95 flex flex-col pb-safe-bottom backdrop-blur-sm transition-opacity duration-300">
     <div class="pt-safe-top px-4 py-4 flex justify-between items-center text-white border-b border-white/10">
@@ -306,6 +418,26 @@
       </label>
       <span v-if="continuousScan" class="text-sm bg-emerald-500/90 px-3 py-2 rounded-full font-bold flex items-center">
         <span class="material-icons text-[16px] mr-1">done_all</span>本次已盤 {{ scanCount }} 件
+      </span>
+    </div>
+
+    <!-- 鏡頭倍率控制／iOS 高解析度提示 -->
+    <div v-if="zoomSupported" class="px-4 pb-3 flex items-center justify-center gap-2 text-white">
+      <span class="text-xs text-white/60 mr-1">目前 {{ currentZoom.toFixed(1) }}×</span>
+      <button @click="setCameraZoom(zoomMin)" :disabled="isApplyingZoom"
+              class="min-h-[44px] min-w-[72px] px-3 py-2 rounded-full font-bold text-sm border transition-colors disabled:opacity-50"
+              :class="Math.abs(currentZoom - zoomMin) < 0.11 ? 'bg-white text-gray-900 border-white' : 'bg-white/10 text-white border-white/20'">
+        原倍率
+      </button>
+      <button @click="setCameraZoom(preferredZoom)" :disabled="isApplyingZoom"
+              class="min-h-[44px] min-w-[72px] px-3 py-2 rounded-full font-bold text-sm border transition-colors disabled:opacity-50"
+              :class="Math.abs(currentZoom - preferredZoom) < 0.11 ? 'bg-indigo-500 text-white border-indigo-400' : 'bg-white/10 text-white border-white/20'">
+        {{ preferredZoom.toFixed(1) }}×
+      </button>
+    </div>
+    <div v-else-if="scannerReady && zoomFallbackMessage" class="px-4 pb-3 text-center">
+      <span class="inline-flex items-center px-3 py-2 rounded-full bg-white/10 text-white/75 text-xs">
+        <span class="material-icons text-[15px] mr-1">high_quality</span>{{ zoomFallbackMessage }}
       </span>
     </div>
 
@@ -520,16 +652,35 @@
 
       // 篩選 / 分批渲染
       const showFilters = ref(false);
-      const locationFilter = ref('');
+      const selectedLocations = ref([]);
+      const draftSelectedLocations = ref([]);
+      const showLocationPicker = ref(false);
+      const locationSearchQuery = ref('');
       const custodianFilter = ref('');
       const operatorFilter = ref('');
       const renderLimit = ref(40);          // 一次先渲染幾筆，捲到底再加
 
+      // 批次盤點
+      const selectionMode = ref(false);
+      const selectedItemIds = ref([]);
+      const showBatchConfirm = ref(false);
+      const isBatchSubmitting = ref(false);
+      const batchProgress = ref(0);
+
       // 連續掃描
       const continuousScan = ref(localStorage.getItem('gas_continuous_scan') === '1');
       const scanCount = ref(0);
+      const scannerReady = ref(false);
+      const zoomSupported = ref(false);
+      const zoomMin = ref(1);
+      const zoomMax = ref(1);
+      const preferredZoom = ref(2);
+      const currentZoom = ref(1);
+      const isApplyingZoom = ref(false);
+      const zoomFallbackMessage = ref('');
       let lastScanCode = '';
       let lastScanTime = 0;
+      let scannerSession = 0;
 
       const selectedItem = ref(null);
       const scrapTarget = ref(null);   // 報廢確認對象（null = 不顯示報廢視窗）
@@ -570,7 +721,7 @@
       watch(currentTab, (newTab) => {
         if (newTab !== 'done') operatorFilter.value = '';
       });
-      watch([currentTab, searchQuery, locationFilter, custodianFilter, operatorFilter], () => {
+      watch([currentTab, searchQuery, selectedLocations, custodianFilter, operatorFilter], () => {
         renderLimit.value = 40;
         window.scrollTo({ top: 0 });
       });
@@ -669,8 +820,11 @@
       // 地點 / 保管人下拉選項（取有值者去重排序）
       const uniqueLocations = computed(() => {
         const s = new Set();
-        inventoryList.value.forEach(i => { const loc = i.AR || i.M; if (loc) s.add(loc.toString()); });
-        return Array.from(s).sort();
+        inventoryList.value.forEach(i => {
+          const loc = (i.AR || i.M || '').toString().trim();
+          if (loc) s.add(loc);
+        });
+        return Array.from(s).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
       });
       const uniqueCustodians = computed(() => {
         const s = new Set();
@@ -687,8 +841,31 @@
         return Array.from(s).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
       });
 
+      const locationFilterLabel = computed(() => {
+        if (selectedLocations.value.length === 0) return '全部地點';
+        if (selectedLocations.value.length === 1) return selectedLocations.value[0];
+        return `已選 ${selectedLocations.value.length} 個地點`;
+      });
+
+      const filteredLocationOptions = computed(() => {
+        const q = locationSearchQuery.value.trim().toLowerCase();
+        if (!q) return uniqueLocations.value;
+        return uniqueLocations.value.filter(loc => loc.toLowerCase().includes(q));
+      });
+
+      const allVisibleLocationsSelected = computed(() =>
+        filteredLocationOptions.value.length > 0 &&
+        filteredLocationOptions.value.every(loc => draftSelectedLocations.value.includes(loc))
+      );
+
+      watch(uniqueLocations, locations => {
+        const validSet = new Set(locations);
+        const valid = selectedLocations.value.filter(loc => validSet.has(loc));
+        if (valid.length !== selectedLocations.value.length) selectedLocations.value = valid;
+      });
+
       const clearFilters = () => {
-        locationFilter.value = '';
+        selectedLocations.value = [];
         custodianFilter.value = '';
         operatorFilter.value = '';
       };
@@ -702,8 +879,9 @@
           list = list.filter(i => i.AB === '已盤點');
         }
 
-        if (locationFilter.value) {
-          list = list.filter(i => (i.AR || i.M || '').toString() === locationFilter.value);
+        if (selectedLocations.value.length > 0) {
+          const selectedSet = new Set(selectedLocations.value);
+          list = list.filter(i => selectedSet.has((i.AR || i.M || '').toString().trim()));
         }
         if (custodianFilter.value) {
           list = list.filter(i => (i.AU || i.K || '').toString() === custodianFilter.value);
@@ -731,6 +909,23 @@
       // 實際渲染的子集（分批）
       const visibleList = computed(() => filteredList.value.slice(0, renderLimit.value));
 
+      const filteredPendingItems = computed(() => filteredList.value.filter(item => item.AB !== '已盤點' && item.B != null && item.B !== ''));
+      const allFilteredSelected = computed(() =>
+        filteredPendingItems.value.length > 0 &&
+        filteredPendingItems.value.every(item => selectedItemIds.value.includes(item.B.toString()))
+      );
+      const selectedItems = computed(() => {
+        const selectedSet = new Set(selectedItemIds.value);
+        return inventoryList.value.filter(item => item.B && selectedSet.has(item.B.toString()) && item.AB !== '已盤點');
+      });
+      const selectedItemsPreview = computed(() => selectedItems.value.slice(0, 5));
+      const selectedLocationSummary = computed(() => {
+        const locations = Array.from(new Set(selectedItems.value.map(item => item.AR || item.M || '未設定地點')));
+        if (locations.length === 0) return '無';
+        if (locations.length <= 3) return locations.join('、');
+        return `${locations.slice(0, 3).join('、')} 等 ${locations.length} 個地點`;
+      });
+
       // --- 方法 (UI 行為) ---
       const showToast = (message, type = 'success', duration = 3000) => {
         toast.value = {
@@ -742,24 +937,270 @@
         setTimeout(() => { toast.value.show = false; }, duration);
       };
 
+      // --- 地點複選 ---
+      const openLocationPicker = () => {
+        draftSelectedLocations.value = [...selectedLocations.value];
+        locationSearchQuery.value = '';
+        showLocationPicker.value = true;
+      };
+
+      const closeLocationPicker = () => {
+        showLocationPicker.value = false;
+        locationSearchQuery.value = '';
+      };
+
+      const toggleDraftLocation = loc => {
+        draftSelectedLocations.value = draftSelectedLocations.value.includes(loc)
+          ? draftSelectedLocations.value.filter(item => item !== loc)
+          : [...draftSelectedLocations.value, loc];
+      };
+
+      const toggleAllVisibleLocations = () => {
+        const visible = filteredLocationOptions.value;
+        if (allVisibleLocationsSelected.value) {
+          const visibleSet = new Set(visible);
+          draftSelectedLocations.value = draftSelectedLocations.value.filter(loc => !visibleSet.has(loc));
+        } else {
+          draftSelectedLocations.value = Array.from(new Set([...draftSelectedLocations.value, ...visible]));
+        }
+      };
+
+      const applyLocationSelection = () => {
+        const selectedSet = new Set(draftSelectedLocations.value);
+        selectedLocations.value = uniqueLocations.value.filter(loc => selectedSet.has(loc));
+        closeLocationPicker();
+      };
+
+      // --- 財產複選與批次盤點 ---
+      const isItemSelected = assetId => selectedItemIds.value.includes(assetId.toString());
+
+      const clearItemSelection = () => {
+        selectedItemIds.value = [];
+      };
+
+      const exitSelectionMode = () => {
+        selectionMode.value = false;
+        selectedItemIds.value = [];
+        showBatchConfirm.value = false;
+      };
+
+      const toggleSelectionMode = () => {
+        if (selectionMode.value) {
+          exitSelectionMode();
+          return;
+        }
+        if (currentTab.value === 'done') currentTab.value = 'pending';
+        selectionMode.value = true;
+        selectedItemIds.value = [];
+        showToast('批次模式：點選未盤點卡片，可全選篩選結果', 'info', 3500);
+      };
+
+      const toggleItemSelection = item => {
+        if (!item || item.AB === '已盤點' || !item.B) return;
+        const id = item.B.toString();
+        selectedItemIds.value = isItemSelected(id)
+          ? selectedItemIds.value.filter(itemId => itemId !== id)
+          : [...selectedItemIds.value, id];
+        haptic(15);
+      };
+
+      const handleCardClick = item => {
+        if (selectionMode.value) {
+          toggleItemSelection(item);
+        } else {
+          openItemModal(item);
+        }
+      };
+
+      const toggleSelectFiltered = () => {
+        const filteredIds = filteredPendingItems.value.map(item => item.B.toString());
+        if (allFilteredSelected.value) {
+          const filteredSet = new Set(filteredIds);
+          selectedItemIds.value = selectedItemIds.value.filter(id => !filteredSet.has(id));
+        } else {
+          selectedItemIds.value = Array.from(new Set([...selectedItemIds.value, ...filteredIds]));
+        }
+        haptic(20);
+      };
+
+      const openBatchConfirm = () => {
+        if (!operatorName.value.trim()) {
+          showToast('請先輸入盤點人姓名', 'error', 4000);
+          return;
+        }
+        selectedItemIds.value = selectedItems.value.map(item => item.B.toString());
+        if (selectedItemIds.value.length === 0) {
+          showToast('請先選取要盤點的財產', 'error', 3000);
+          return;
+        }
+        showBatchConfirm.value = true;
+      };
+
+      const closeBatchConfirm = () => {
+        if (!isBatchSubmitting.value) showBatchConfirm.value = false;
+      };
+
+      const submitBatchInventory = async () => {
+        if (isBatchSubmitting.value) return;
+        const items = selectedItems.value.map(item => ({ rowIndex: item.rowIndex, assetId: item.B.toString() }));
+        if (!operatorName.value.trim() || items.length === 0) return;
+
+        isBatchSubmitting.value = true;
+        batchProgress.value = 0;
+        const updatedIds = [];
+        const skipped = [];
+        const failed = [];
+        const chunks = [];
+        for (let i = 0; i < items.length; i += 200) chunks.push(items.slice(i, i + 200));
+
+        try {
+          if (GAS_API_URL === "請在此填入部署後的_GAS_API_網址" || GAS_API_URL === "") {
+            items.forEach(item => updatedIds.push(item.assetId));
+            batchProgress.value = 100;
+          } else {
+            for (let i = 0; i < chunks.length; i++) {
+              const chunk = chunks[i];
+              try {
+                const response = await fetch(GAS_API_URL, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                  body: JSON.stringify({
+                    action: 'batchInventory',
+                    operatorName: operatorName.value.trim(),
+                    items: chunk
+                  })
+                });
+                if (!response.ok) throw new Error('API 回應錯誤: ' + response.status);
+                const result = await response.json();
+                if (!result.success) throw new Error(result.message || '批次盤點失敗');
+                updatedIds.push(...(result.updatedIds || []).map(String));
+                skipped.push(...(result.skipped || []));
+                failed.push(...(result.failed || []));
+              } catch (error) {
+                chunk.forEach(item => failed.push({ assetId: item.assetId, reason: error.message || '網路連線失敗' }));
+                for (let j = i + 1; j < chunks.length; j++) {
+                  chunks[j].forEach(item => failed.push({ assetId: item.assetId, reason: '尚未送出' }));
+                }
+                break;
+              }
+              batchProgress.value = Math.round(((i + 1) / chunks.length) * 100);
+            }
+          }
+
+          updatedIds.forEach(id => updateLocalItemStatus(id, {}));
+          const completedSet = new Set([...updatedIds, ...skipped.map(item => String(item.assetId))]);
+          selectedItemIds.value = selectedItemIds.value.filter(id => !completedSet.has(id));
+          saveCache(inventoryList.value);
+
+          const successCount = updatedIds.length;
+          const skippedCount = skipped.length;
+          const failedCount = failed.length;
+          if (failedCount > 0) {
+            showToast(`批次盤點完成 ${successCount} 件，失敗 ${failedCount} 件；失敗項目已保留選取`, 'error', 7000);
+          } else {
+            showToast(`批次盤點完成 ${successCount} 件${skippedCount ? `，略過已盤點 ${skippedCount} 件` : ''}`, 'success', 5000);
+            exitSelectionMode();
+          }
+          if (skippedCount > 0) loadData();
+          showBatchConfirm.value = false;
+          haptic(failedCount ? 80 : 40);
+        } finally {
+          isBatchSubmitting.value = false;
+          batchProgress.value = 0;
+        }
+      };
+
       // --- 掃描器邏輯 ---
       let html5QrCode = null;
 
-      const startScan = () => {
+      const alignZoomToStep = (value, min, max, step) => {
+        if (!step || step <= 0) return Math.min(max, Math.max(min, value));
+        const aligned = min + Math.round((value - min) / step) * step;
+        return Math.min(max, Math.max(min, aligned));
+      };
+
+      const setCameraZoom = async requestedZoom => {
+        if (!html5QrCode || !html5QrCode.isScanning || !zoomSupported.value || isApplyingZoom.value) return;
+        isApplyingZoom.value = true;
+        try {
+          const capabilities = html5QrCode.getRunningTrackCapabilities();
+          const zoom = capabilities && capabilities.zoom;
+          const target = alignZoomToStep(Number(requestedZoom), Number(zoom.min), Number(zoom.max), Number(zoom.step));
+          await html5QrCode.applyVideoConstraints({ advanced: [{ zoom: target }] });
+          const settings = html5QrCode.getRunningTrackSettings();
+          currentZoom.value = Number(settings.zoom || target);
+        } catch (error) {
+          console.warn('鏡頭倍率套用失敗', error);
+          showToast('此鏡頭目前無法切換倍率', 'info', 2500);
+        } finally {
+          isApplyingZoom.value = false;
+        }
+      };
+
+      const configureCameraZoom = async sessionId => {
+        if (!html5QrCode || !html5QrCode.isScanning || sessionId !== scannerSession) return;
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        try {
+          const capabilities = html5QrCode.getRunningTrackCapabilities();
+          const zoom = capabilities && capabilities.zoom;
+          if (!zoom || !Number.isFinite(Number(zoom.min)) || !Number.isFinite(Number(zoom.max)) || Number(zoom.max) <= Number(zoom.min)) {
+            throw new Error('zoom-not-supported');
+          }
+          zoomMin.value = Number(zoom.min);
+          zoomMax.value = Number(zoom.max);
+          preferredZoom.value = alignZoomToStep(2, zoomMin.value, zoomMax.value, Number(zoom.step));
+          zoomSupported.value = true;
+          zoomFallbackMessage.value = '';
+          await setCameraZoom(preferredZoom.value);
+        } catch (error) {
+          zoomSupported.value = false;
+          zoomMin.value = 1;
+          zoomMax.value = 1;
+          preferredZoom.value = 2;
+          currentZoom.value = 1;
+          zoomFallbackMessage.value = isIOS
+            ? '此裝置不支援網頁變焦，已啟用高解析度掃描'
+            : '此鏡頭不支援網頁變焦，已使用高解析度掃描';
+        }
+      };
+
+      const startScan = async () => {
         if (continuousScan.value && !operatorName.value.trim()) {
           showToast('連續掃描前請先輸入盤點人姓名', 'error', 4000);
           return;
         }
+        if (html5QrCode && html5QrCode.isScanning) return;
+
+        const sessionId = ++scannerSession;
         showScanner.value = true;
         scanCount.value = 0;
         lastScanCode = '';
-        nextTick(() => {
+        scannerReady.value = false;
+        zoomSupported.value = false;
+        zoomFallbackMessage.value = '';
+        currentZoom.value = 1;
+
+        try {
+          await nextTick();
+          if (sessionId !== scannerSession) return;
           if (html5QrCode === null) {
             html5QrCode = new Html5Qrcode("reader");
           }
-          const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
-          html5QrCode.start(
-            { facingMode: "environment" },
+          const config = {
+            fps: 10,
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+              const shortEdge = Math.min(viewfinderWidth, viewfinderHeight);
+              const size = Math.max(100, Math.min(420, Math.floor(shortEdge * 0.7)));
+              return { width: size, height: size };
+            }
+          };
+          await html5QrCode.start(
+            {
+              facingMode: { ideal: "environment" },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 }
+            },
             config,
             (decodedText) => {
               if (continuousScan.value) {
@@ -770,19 +1211,30 @@
               }
             },
             () => { /* 對焦失敗，靜默略過 */ }
-          ).catch((err) => {
-            console.error("相機啟動失敗", err);
-            stopScan();
-            showToast('無法啟動相機，請確認已給予相機權限', 'error', 5000);
-          });
-        });
+          );
+          if (sessionId !== scannerSession) {
+            if (html5QrCode.isScanning) await html5QrCode.stop();
+            return;
+          }
+          scannerReady.value = true;
+          await configureCameraZoom(sessionId);
+        } catch (err) {
+          if (sessionId !== scannerSession) return;
+          console.error("相機啟動失敗", err);
+          await stopScan();
+          showToast('無法啟動相機，請確認已給予相機權限', 'error', 5000);
+        }
       };
 
-      const stopScan = () => {
-        if (html5QrCode && html5QrCode.isScanning) {
-          html5QrCode.stop().catch(e => {});
-        }
+      const stopScan = async () => {
+        scannerSession++;
+        scannerReady.value = false;
+        zoomSupported.value = false;
+        zoomFallbackMessage.value = '';
         showScanner.value = false;
+        if (html5QrCode && html5QrCode.isScanning) {
+          try { await html5QrCode.stop(); } catch (e) {}
+        }
       };
 
       const normalizeCode = (text) => text.startsWith("888!") ? text.substring(4) : text;
@@ -983,7 +1435,7 @@
 
       // 即時更新前端記憶體資料，不需重新撈取 DB
       const updateLocalItemStatus = (id, newValues) => {
-        const itemIndex = inventoryList.value.findIndex(i => i.B === id);
+        const itemIndex = inventoryList.value.findIndex(i => i.B != null && i.B.toString() === id.toString());
         if (itemIndex > -1) {
           const item = inventoryList.value[itemIndex];
           const now = new Date();
@@ -1078,10 +1530,18 @@
       return {
         inventoryList, isLoading, isRefreshing, isSubmitting, errorMessage,
         operatorName, currentTab, searchQuery, stats, progressPct, filteredList, visibleList,
-        showFilters, locationFilter, custodianFilter, operatorFilter,
+        showFilters, selectedLocations, custodianFilter, operatorFilter,
         uniqueLocations, uniqueCustodians, uniqueOperators, clearFilters,
+        showLocationPicker, draftSelectedLocations, locationSearchQuery,
+        locationFilterLabel, filteredLocationOptions, allVisibleLocationsSelected,
+        openLocationPicker, closeLocationPicker, toggleDraftLocation, toggleAllVisibleLocations, applyLocationSelection,
         lastUpdated,
-        continuousScan, scanCount,
+        continuousScan, scanCount, scannerReady, zoomSupported, zoomMin, zoomMax,
+        preferredZoom, currentZoom, isApplyingZoom, zoomFallbackMessage, setCameraZoom,
+        selectionMode, selectedItemIds, showBatchConfirm, isBatchSubmitting, batchProgress,
+        allFilteredSelected, selectedItemsPreview, selectedLocationSummary,
+        toggleSelectionMode, exitSelectionMode, clearItemSelection, toggleSelectFiltered,
+        isItemSelected, handleCardClick, openBatchConfirm, closeBatchConfirm, submitBatchInventory,
         showRemarkModal, remarkText, isSubmittingRemark, openRemarkModal, closeRemarkModal, submitRemark,
         showScanner, startScan, stopScan, handleScannedCode, loadData,
         selectedItem, editForm, openItemModal, closeItemModal, submitInventory, quickInventory,
